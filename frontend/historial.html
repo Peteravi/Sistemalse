@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Historial de Secuencias</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/historial.css">
+</head>
+
+<body>
+    <div class="container py-3">
+        <!-- Encabezado -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Historial de Secuencias</h5>
+            <div class="d-flex gap-2">
+                <button id="btnRefrescar" class="btn btn-sm btn-outline-secondary" type="button" title="Refrescar">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros mejorados con iconos -->
+        <form id="formFiltros" class="row g-2 align-items-end mb-3" autocomplete="off">
+            <!-- Etiqueta -->
+            <div class="col-12 col-md-4">
+                <label for="fNombre" class="form-label mb-1">
+                    <i class="bi bi-tags-fill me-1"></i> Etiqueta
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text" title="Buscar">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="fNombre" class="form-control" placeholder="Buscar por nombre"
+                        aria-label="Buscar por etiqueta">
+                    <button class="btn btn-outline-secondary" type="button" id="btnLimpiarNombre"
+                        title="Limpiar búsqueda" data-bs-toggle="tooltip">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Desde -->
+            <div class="col-6 col-md-3">
+                <label for="fDesde" class="form-label mb-1">
+                    <i class="bi bi-calendar-event me-1"></i> Desde
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                    <input type="date" id="fDesde" class="form-control form-control-sm" aria-label="Fecha desde">
+                    <button class="btn btn-outline-secondary" type="button" id="btnClearDesde" title="Limpiar fecha"
+                        data-bs-toggle="tooltip">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hasta -->
+            <div class="col-6 col-md-3">
+                <label for="fHasta" class="form-label mb-1">
+                    <i class="bi bi-calendar2-event me-1"></i> Hasta
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-calendar-week"></i></span>
+                    <input type="date" id="fHasta" class="form-control form-control-sm" aria-label="Fecha hasta">
+                    <button class="btn btn-outline-secondary" type="button" id="btnClearHasta" title="Limpiar fecha"
+                        data-bs-toggle="tooltip">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tamaño -->
+            <div class="col-6 col-md-1">
+                <label for="fTam" class="form-label mb-1">
+                    <i class="bi bi-list-ol me-1"></i> Tamaño
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-arrows-expand"></i></span>
+                    <select id="fTam" class="form-select form-select-sm" aria-label="Tamaño de página">
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Botones acción -->
+            <div class="col-6 col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary btn-sm btn-ripple" id="btnFiltrar">
+                    <i class="bi bi-funnel-fill me-1"></i> Filtrar
+                </button>
+            </div>
+            
+        <!-- Tabla -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-2">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width:180px;">
+                            <i class="bi bi-clock-history me-1"></i> Fecha
+                        </th>
+                        <th><i class="bi bi-tag me-1"></i> Etiqueta</th>
+                        <th><i class="bi bi-person-badge me-1"></i> Usuario</th>
+                        <th><i class="bi bi-collection me-1"></i> Frames</th>
+                        <th style="width:140px;">
+                            <i class="bi bi-eye me-1"></i> Acciones
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="historialBody">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="bi bi-hourglass-split me-2"></i> Cargando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="d-flex justify-content-between align-items-center">
+            <small id="histInfo" class="text-muted"></small>
+            <div class="btn-group">
+                <button id="prevPage" class="btn btn-outline-secondary btn-sm" title="Página Anterior">«</button>
+                <button id="nextPage" class="btn btn-outline-secondary btn-sm" title="Página Siguiente">»</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalle -->
+    <div class="modal fade" id="modalDetalle" tabindex="-1" aria-labelledby="modalDetalleLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modalDetalleLabel"><i class="bi bi-eye me-2"></i>Detalle de Secuencia
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="detalleMeta" class="mb-3 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:120px;"># Frame</th>
+                                    <th>Landmarks (conteo)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detalleBody">
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end">
+                        <small id="detalleInfo" class="text-muted"></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
+    <script src="js/historial.js" defer></script>
+</body>
+
+</html>

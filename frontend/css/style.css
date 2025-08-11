@@ -1,0 +1,513 @@
+:root {
+    --ug-blue: #0056b3;
+    --ug-navy: #0f2a45;
+    --ug-gold: #f5a623;
+    --ug-green: #28a745;
+    --ug-lightblue: #00a8e8;
+    --ug-gray: #6c757d;
+    --ug-light: #f4f8fb;
+    --radius: 16px;
+    --shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    --transition: all 0.25s ease-in-out;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(270deg, #e9f1f9, #dceaff, #cce0f5, #eaf6ff);
+    background-size: 800% 800%;
+    animation: backgroundFlow 20s ease infinite;
+    color: var(--ug-navy);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accesibilidad: respetar usuarios que reducen animaciones */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    body {
+        animation: none !important;
+    }
+
+    .pulse {
+        animation: none !important;
+    }
+}
+
+@keyframes backgroundFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.07);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ---------- Header ---------- */
+.header-gradient {
+    background: linear-gradient(120deg, var(--ug-blue), var(--ug-lightblue));
+    color: #fff;
+    padding: 4rem 1rem 3rem;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.header-gradient::after {
+    content: "";
+    position: absolute;
+    inset: auto -20% -35% -20%;
+    height: 60%;
+    background: radial-gradient(55% 60% at 50% 0%, rgba(255, 255, 255, 0.15), transparent 70%);
+    pointer-events: none;
+}
+
+.header-logo {
+    max-height: 160px;
+    display: block;
+    margin: 0 auto 1rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+    transition: transform .2s ease, filter .2s ease;
+    will-change: transform;
+}
+
+.header-logo:hover {
+    transform: scale(1.04);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .3));
+}
+
+.system-title {
+    font-size: clamp(1.8rem, 3.2vw + 1rem, 2.7rem);
+    font-weight: 800;
+    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+    letter-spacing: .2px;
+    margin-bottom: .25rem;
+}
+
+.system-subtitle {
+    font-size: clamp(1.05rem, 1.2vw + .6rem, 1.3rem);
+    color: #dceeff;
+    font-weight: 600;
+    margin-bottom: .4rem;
+}
+
+.badge-lse {
+    background-color: var(--ug-gold);
+    color: #212529;
+    padding: 0.6rem 1.1rem;
+    font-weight: 700;
+    border-radius: 999px;
+    display: inline-block;
+    margin-top: .75rem;
+    box-shadow: 0 4px 12px rgba(245, 166, 35, .25);
+}
+
+.project-subtitle {
+    font-size: .98rem;
+    color: #eef7ff;
+    margin-top: .6rem;
+    opacity: .95;
+}
+
+/* Botón cerrar sesión en esquina */
+.position-top-end {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+}
+
+#cerrarSesionBtn {
+    font-weight: 700;
+    padding: .45rem 1rem;
+    transition: var(--transition);
+    backdrop-filter: blur(2px);
+}
+
+#cerrarSesionBtn:hover {
+    background-color: #fff !important;
+    color: var(--ug-blue) !important;
+    transform: translateY(-1px);
+}
+
+/* Layout fix para móviles: mover botón dentro del flujo */
+@media (max-width: 768px) {
+    .position-top-end {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: .75rem auto 0;
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+/* ---------- Bloque Descripción ---------- */
+.descripcion {
+    background: #fff;
+    color: #3e5064;
+    padding: 2rem;
+    max-width: 860px;
+    margin: 2rem auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-size: 1.05rem;
+}
+
+.descripcion .description-icon .bi {
+    vertical-align: -2px;
+}
+
+/* ---------- Sección Opciones ---------- */
+.seccion-opciones h3 {
+    font-weight: 800;
+    color: var(--ug-navy);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.btn-action {
+    font-weight: 700;
+    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .75rem 1.5rem;
+    border-radius: 999px;
+    transition: var(--transition);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(2px);
+    will-change: transform, box-shadow;
+}
+
+.btn-action i {
+    font-size: 1.1em;
+}
+
+.btn-action:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, .16);
+}
+
+.btn-action:active {
+    transform: translateY(-1px) scale(.98);
+}
+
+/* ---------- Video ---------- */
+.video-viewer {
+    border: 3px solid var(--ug-blue);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    background: #ffffff30;
+    backdrop-filter: blur(3px);
+    object-fit: cover;
+}
+
+#estadoReconocimiento {
+    font-size: clamp(1rem, 1.2vw + .6rem, 1.2rem);
+    font-weight: 800;
+    color: #d9534f;
+    /* rojo accesible */
+    animation: pulse 2s infinite ease-in-out;
+}
+
+/* ---------- Campo de Etiqueta ---------- */
+.input-group {
+    max-width: 640px;
+    margin: 1.25rem auto 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: #fff;
+    align-items: stretch;
+}
+
+.input-group-text {
+    background-color: var(--ug-blue);
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    border-radius: 0;
+    padding: .65rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+#etiquetaGesto {
+    border: none;
+    flex: 1;
+    padding: .8rem 1rem;
+    font-size: 1rem;
+    min-width: 0;
+    outline: none;
+}
+
+#etiquetaGesto::placeholder {
+    color: var(--ug-gray);
+    opacity: .75;
+}
+
+#etiquetaGesto:focus-visible {
+    outline: 3px solid rgba(0, 86, 179, .25);
+    outline-offset: 0;
+}
+
+/* Botón limpiar dentro del prefijo */
+#clearInputBtn {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: #fff;
+    transition: var(--transition);
+    line-height: 1;
+}
+
+#clearInputBtn:hover {
+    color: var(--ug-gold);
+    transform: scale(1.12);
+}
+
+/* ---------- Controles de Video ---------- */
+.video-controls {
+    display: flex;
+    justify-content: center;
+    gap: .85rem;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+}
+
+.video-controls .btn {
+    min-width: 130px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: .55rem 1.2rem;
+    transition: var(--transition);
+}
+
+.video-controls .btn:hover {
+    transform: translateY(-2px);
+}
+
+.video-controls .btn:active {
+    transform: translateY(-1px) scale(.99);
+}
+
+/* Dropdown de descarga */
+.btn-group .dropdown-menu {
+    border-radius: 14px;
+    padding: .35rem;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .14);
+}
+
+.dropdown-item {
+    border-radius: 10px;
+    padding: .55rem .8rem;
+    font-weight: 600;
+}
+
+.dropdown-item:hover {
+    background: #f1f6ff;
+}
+
+/* ---------- Footer ---------- */
+.shadow-top {
+    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+footer.bg-dark {
+    background: var(--ug-navy) !important;
+    color: #fff;
+    font-size: .95rem;
+}
+
+footer strong {
+    color: var(--ug-gold);
+}
+
+footer i {
+    margin-right: .5rem;
+    color: var(--ug-lightblue);
+}
+
+footer p {
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, .85);
+}
+
+/* ---------- Utilidades ---------- */
+.object-fit-cover {
+    object-fit: cover;
+}
+
+/* por si algún navegador viejo */
+.toast-container {
+    z-index: 1080;
+}
+
+/* ---------- Estados de foco visibles (accesibilidad) ---------- */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible {
+    outline: 3px solid rgba(0, 168, 232, .35);
+    outline-offset: 2px;
+    border-radius: 12px;
+}
+
+/* ---------- Breakpoints ---------- */
+/* Tablets y abajo */
+@media (max-width: 991.98px) {
+    .header-logo {
+        max-height: 130px;
+        margin-bottom: .8rem;
+    }
+
+    .btn-action {
+        padding: .7rem 1.25rem;
+    }
+
+    .descripcion {
+        margin: 1.5rem 1rem;
+    }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+    .system-title {
+        letter-spacing: .1px;
+    }
+
+    .descripcion {
+        padding: 1.15rem;
+        font-size: 1rem;
+    }
+
+    .btn-action {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .input-group {
+        max-width: 100%;
+        margin: 1rem auto;
+        flex-direction: column;
+        border-radius: var(--radius);
+    }
+
+    .input-group-text {
+        width: 100%;
+        justify-content: center;
+        border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    #etiquetaGesto {
+        width: 100%;
+        border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    .video-controls {
+        flex-direction: column;
+        gap: .75rem;
+    }
+
+    footer {
+        font-size: .85rem;
+        padding: 1.6rem 0;
+    }
+}
+
+/* Teléfonos pequeños */
+@media (max-width: 420px) {
+    .header-logo {
+        max-height: 110px;
+    }
+
+    .badge-lse {
+        padding: .5rem .9rem;
+        font-size: .85rem;
+    }
+
+    .btn-action {
+        font-size: 1rem;
+    }
+}
+
+/* ---------- Dark Mode opcional (si el sistema lo solicita) ---------- */
+@media (prefers-color-scheme: dark) {
+    body {
+        color: #eaf4ff;
+    }
+
+    .descripcion {
+        background: #102538;
+        color: #d8e6f5;
+    }
+
+    .input-group {
+        background: #0f2234;
+    }
+
+    #etiquetaGesto {
+        background: transparent;
+        color: #eaf4ff;
+    }
+
+    #etiquetaGesto::placeholder {
+        color: #a9c0d6;
+    }
+
+    .dropdown-item:hover {
+        background: rgba(255, 255, 255, .06);
+    }
+
+    /* Forzar texto negro en el modal historial */
+    #modalHistorial,
+    #modalHistorial * {
+        color: #000 !important;
+    }
+
+    /* Si quieres que también lo que se cargue en el iframe tenga letras negras */
+    #iframeHistorial {
+        color: #000;
+    }
+
+}
