@@ -9,8 +9,6 @@ def crear_secuencia(nombre, usuario_id):
         if conn is None:
             print("❌ Error: conexión no establecida en crear_secuencia")
             return None
-
-        # ✅ DictCursor para acceder por nombre de columna
         cursor = conn.cursor(cursor_factory=DictCursor)
         print(f"➕ Insertando nueva secuencia con nombre: '{nombre}'")
 

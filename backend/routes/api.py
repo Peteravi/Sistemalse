@@ -1,9 +1,8 @@
-# routes/api.py
 from flask import Blueprint, request, jsonify, Response
 from bd.conexion import get_connection
 from datetime import datetime, timedelta
-import csv, io, json
-from typing import Any
+import csv, io, json, re
+from typing import Any, Tuple, Optional
 
 api_bp = Blueprint("api_bp", __name__)
 
@@ -29,7 +28,6 @@ def _get_one_value(row: Any, default=0):
     if isinstance(row, (list, tuple)):
         return row[0] if row else default
     if isinstance(row, dict):
-        # toma el primer value
         for v in row.values():
             return v
     return default
@@ -46,19 +44,127 @@ def _row_field(row: Any, idx_or_key):
         raise KeyError(f"Clave requerida para fila tipo {type(row)}")
     return None
 
+# -------------------------
+# Normalización de nombres
+# -------------------------
+# Formatos normalizados:
+#   NUM:<int>      -> 1..100
+#   FECHA:<yyyy-mm-dd>
+#   CANT:<numero>  -> admite decimales
+#   TEXTO:<string> -> fallback si no se reconoce
+NUM_RE = re.compile(r"^\s*(\d{1,3})\s*$")
+FECHA_RE = re.compile(r"^\s*(\d{4})-(\d{2})-(\d{2})\s*$")
+CANT_RE = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*(?:unid(?:ades)?|u|pcs|kg|g|l|ml)?\s*$", re.IGNORECASE)
+
+def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: Optional[str]) -> Tuple[str, str, str]:
+    """
+    Devuelve (nombre_normalizado, tipo_final, valor_final)
+    Reglas:
+      - Si viene tipo/valor válidos, se priorizan.
+      - Si no, se infiere desde 'nombre'.
+    """
+    tipo = (tipo or "").strip().lower()
+    valor = (valor or "").strip()
+    raw = (nombre or "").strip()
+
+    # 1) Si nos dieron tipo+valor válidos
+    if tipo == "numero":
+        try:
+            n = int(valor)
+            if 1 <= n <= 100:
+                return (f"NUM:{n}", "numero", str(n))
+        except:
+            pass
+    elif tipo == "fecha":
+        # aceptamos YYYY-MM-DD
+        try:
+            dt = _parse_date_or_none(valor)
+            if dt:
+                y, m, d = dt.date().isoformat().split("-")
+                return (f"FECHA:{y}-{m}-{d}", "fecha", f"{y}-{m}-{d}")
+        except:
+            pass
+    elif tipo == "cantidad":
+        # decimal con punto
+        try:
+            v = float(valor.replace(",", "."))
+            return (f"CANT:{v}", "cantidad", str(v))
+        except:
+            pass
+
+    # 2) Intentar inferir desde 'raw'
+    if raw:
+        # ¿número 1..100?
+        m = NUM_RE.match(raw)
+        if m:
+            try:
+                n = int(m.group(1))
+                if 1 <= n <= 100:
+                    return (f"NUM:{n}", "numero", str(n))
+            except:
+                pass
+        # ¿fecha YYYY-MM-DD?
+        m = FECHA_RE.match(raw)
+        if m:
+            try:
+                y, mo, d = m.groups()
+                dt = _parse_date_or_none(f"{y}-{mo}-{d}")
+                if dt:
+                    y, mo, d = dt.date().isoformat().split("-")
+                    return (f"FECHA:{y}-{mo}-{d}", "fecha", f"{y}-{mo}-{d}")
+            except:
+                pass
+        # ¿cantidad decimal?
+        m = CANT_RE.match(raw)
+        if m:
+            try:
+                v = float(m.group(1).replace(",", "."))
+                return (f"CANT:{v}", "cantidad", str(v))
+            except:
+                pass
+        # fallback texto
+        return (f"TEXTO:{raw}", "texto", raw)
+
+    # 3) último recurso
+    return ("TEXTO:", "texto", "")
+
+def _parse_normalized_nombre(nombre_norm: str) -> Tuple[str, str]:
+    """
+    Extrae (tipo, valor) desde el nombre normalizado.
+    """
+    if not nombre_norm:
+        return ("texto", "")
+    if nombre_norm.startswith("NUM:"):
+        return ("numero", nombre_norm[4:])
+    if nombre_norm.startswith("FECHA:"):
+        return ("fecha", nombre_norm[6:])
+    if nombre_norm.startswith("CANT:"):
+        return ("cantidad", nombre_norm[5:])
+    if nombre_norm.startswith("TEXTO:"):
+        return ("texto", nombre_norm[6:])
+    # Desconocido -> texto
+    return ("texto", nombre_norm)
+
 # =========================
 # Crear secuencia
 # =========================
 @api_bp.route("/crear_secuencia", methods=["POST"])
 def crear_secuencia():
     """
-    Body JSON: { "nombre": "hola", "usuario_id": 1(opc), "fecha": ISO(opc) }
+    Body JSON:
+      Opción clásica: { "nombre": "hola" }
+      Nuevos campos (opc): { "tipo": "numero|fecha|cantidad|texto", "valor": "..." }
     """
     try:
         data = request.get_json(silent=True) or {}
         nombre = (data.get("nombre") or "").strip()
-        if not nombre:
-            return jsonify({"ok": False, "error": "nombre es requerido"}), 400
+        tipo   = (data.get("tipo") or "").strip().lower() or None
+        valor  = (data.get("valor") or "").strip() or None
+
+        if not nombre and not valor:
+            return jsonify({"ok": False, "error": "Se requiere 'nombre' o ('tipo' y 'valor')"}), 400
+
+        nombre_norm, tipo_final, valor_final = _build_normalized_nombre(tipo, valor, nombre)
 
         usuario_id = data.get("usuario_id")
         fecha = _parse_date_or_none(data.get("fecha")) or datetime.utcnow()
@@ -66,13 +172,19 @@ def crear_secuencia():
         with get_connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO secuencias (nombre, fecha, usuario_id) VALUES (%s, %s, %s) RETURNING id",
-                (nombre, fecha, usuario_id),
+                (nombre_norm, fecha, usuario_id),
             )
             row = cur.fetchone()
             secuencia_id = _get_one_value(row, None)
             conn.commit()
 
-        return jsonify({"ok": True, "secuencia_id": secuencia_id})
+        return jsonify({
+            "ok": True,
+            "secuencia_id": secuencia_id,
+            "nombre": nombre_norm,
+            "tipo": tipo_final,
+            "valor": valor_final
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -84,7 +196,7 @@ def guardar_frame():
     """
     Body JSON:
     {
-      "secuencia_id": 123  ó  "etiqueta": "hola",
+      "secuencia_id": 123  ó  ("etiqueta"/"nombre" o "tipo"+"valor"),
       "frame": 0,                            # -> num_frame
       "landmarks": [ {x:..., y:..., z:...}, ... ]
     }
@@ -93,7 +205,9 @@ def guardar_frame():
         data = request.get_json(silent=True) or {}
 
         secuencia_id = data.get("secuencia_id")
-        etiqueta = (data.get("etiqueta") or "").strip()
+        etiqueta = (data.get("etiqueta") or data.get("nombre") or "").strip()
+        tipo  = (data.get("tipo") or "").strip().lower() or None
+        valor = (data.get("valor") or "").strip() or None
 
         # Normaliza frame -> num_frame
         try:
@@ -106,15 +220,12 @@ def guardar_frame():
         landmarks = data.get("landmarks", [])
 
         # -------- Validaciones fuertes de landmarks --------
-        # Si viene un dict suelto, lo envolvemos en lista
         if isinstance(landmarks, dict):
             landmarks = [landmarks]
 
-        # Debe ser lista no vacía
         if not isinstance(landmarks, list) or len(landmarks) == 0:
             return jsonify({"ok": False, "error": "landmarks vacíos o inválidos"}), 400
 
-        # Cada punto debe tener x,y,z (numéricos)
         def _p_ok(p):
             if not isinstance(p, dict):
                 return False
@@ -130,15 +241,16 @@ def guardar_frame():
             return jsonify({"ok": False, "error": "formato de landmarks inválido; se requieren campos numéricos x,y,z"}), 400
         # ---------------------------------------------------
 
-        if not secuencia_id and not etiqueta:
-            return jsonify({"ok": False, "error": "secuencia_id o etiqueta requerido"}), 400
+        if not secuencia_id and not etiqueta and not valor:
+            return jsonify({"ok": False, "error": "secuencia_id o (nombre/tipo+valor) requerido"}), 400
 
         with get_connection() as conn, conn.cursor() as cur:
             # Crear secuencia si no se envió secuencia_id
             if not secuencia_id:
+                nombre_norm, _, _ = _build_normalized_nombre(tipo, valor, etiqueta)
                 cur.execute(
                     "INSERT INTO secuencias (nombre) VALUES (%s) RETURNING id",
-                    (etiqueta,)
+                    (nombre_norm,)
                 )
                 row = cur.fetchone()
                 secuencia_id = _get_one_value(row, None)
@@ -252,9 +364,12 @@ def historial_listado():
             unom = _row_field(row, 4) if isinstance(row, (list, tuple)) else _row_field(row, "usuario_nombre")
             frs = _row_field(row, 5) if isinstance(row, (list, tuple)) else _row_field(row, "frames")
 
+            tipo, valor = _parse_normalized_nombre(nom or "")
             items.append({
                 "id": sid,
                 "nombre": nom,
+                "tipo": tipo,
+                "valor": valor,
                 "fecha": fec.isoformat() if hasattr(fec, "isoformat") else (str(fec) if fec else None),
                 "usuario_id": uid,
                 "usuario": unom,
@@ -317,12 +432,15 @@ def historial_detalle(secuencia_id: int):
             frames.append({"id": f_id, "frame": nf, "num_frame": nf, "landmarks": lmk})
 
         fecha_iso = s_fec.isoformat() if hasattr(s_fec, "isoformat") else (str(s_fec) if s_fec else None)
+        tipo, valor = _parse_normalized_nombre(s_nom or "")
 
         return jsonify({
             "ok": True,
             "secuencia": {
                 "id": s_id,
                 "nombre": s_nom,
+                "tipo": tipo,
+                "valor": valor,
                 "fecha": fecha_iso,
                 "usuario": s_usr,
                 "total_frames": int(total_frames or 0),
@@ -392,8 +510,11 @@ def exportar():
                 fecha = r.get("fecha")
                 num_frame = r.get("num_frame")
                 landmarks = r.get("landmarks")
+            tipo, valor = _parse_normalized_nombre(nombre_s or "")
             registros.append({
                 "nombre_secuencia": nombre_s,
+                "tipo": tipo,
+                "valor": valor,
                 "fecha": fecha.isoformat() if hasattr(fecha, "isoformat") else (str(fecha) if fecha else None),
                 "num_frame": int(num_frame or 0),
                 "landmarks": landmarks
@@ -409,10 +530,12 @@ def exportar():
         # CSV por defecto: guardamos landmarks como JSON string
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["nombre_secuencia", "fecha", "num_frame", "landmarks_json"])
+        writer.writerow(["nombre_secuencia", "tipo", "valor", "fecha", "num_frame", "landmarks_json"])
         for item in registros:
             writer.writerow([
                 item["nombre_secuencia"],
+                item["tipo"],
+                item["valor"],
                 item["fecha"],
                 item["num_frame"],
                 json.dumps(item["landmarks"], ensure_ascii=False)
