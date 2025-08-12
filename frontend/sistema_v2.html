@@ -86,20 +86,53 @@
                 </div>
             </section>
 
-            <!-- Visor de video -->
+            <!-- === CAPTURADORA MEJORADA (solo se reemplaza esta sección) === -->
             <section class="text-center mb-5">
-                <figure class="position-relative mx-auto w-100 rounded-4 overflow-hidden"
-                    style="max-width:640px; aspect-ratio:4/3;">
-                    <video id="videoFrontend"
-                        class="video-viewer w-100 h-100 object-fit-cover rounded-4 border border-primary shadow"
-                        autoplay muted playsinline aria-label="Vista previa de cámara para captura de gestos">
-                    </video>
-                </figure>
-                <div id="estadoReconocimiento" class="mt-3 fw-bold text-danger" role="status" aria-live="polite">🔴
-                    Esperando...</div>
-            </section>
+                <section class="capture-wrapper" id="captureWrapper" aria-label="Capturadora de video">
+                    <div class="capture-header d-flex align-items-center justify-content-between">
+                        <div class="title fw-semibold">
+                            <i class="bi bi-camera-video me-2"></i> Capturadora LSE
+                        </div>
+                        <div class="indicators d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill bg-light text-dark" id="indicadorResolucion">—</span>
+                            <span class="badge rounded-pill bg-success-subtle text-success-emphasis d-none"
+                                id="indicadorGrabando">
+                                <span class="dot me-1"></span> Grabando
+                            </span>
+                        </div>
+                    </div>
 
-            <!-- Campo etiqueta + controles -->
+                    <div class="capture-stage position-relative" id="captureStage" style="aspect-ratio:16/9;">
+                        <!-- Video/canvas con relación 16:9, mantiene ID original para compatibilidad -->
+                        <video id="videoFrontend" class="video-viewer w-100 h-100 object-fit-cover" autoplay muted
+                            playsinline aria-label="Vista previa de cámara para captura de gestos"></video>
+                        <canvas id="overlay" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+
+                        <!-- HUD -->
+                        <div class="capture-hud top-left" id="hudTopLeft">
+                            <i class="bi bi-speedometer2 me-1"></i><span id="indicadorFps">FPS: —</span>
+                        </div>
+
+                        <!-- Botón flotante de Pantalla Completa -->
+                        <div class="capture-controls position-absolute start-50 translate-middle-x"
+                            style="bottom:.65rem;">
+                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3" id="btnPantallaCompleta"
+                                aria-pressed="false" type="button" title="Pantalla completa">
+                                <i class="bi bi-arrows-fullscreen me-1" id="iconFullscreen" aria-hidden="true"></i>
+                                Pantalla completa
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Estado (mantengo tu elemento original) -->
+                <div id="estadoReconocimiento" class="mt-3 fw-bold text-danger" role="status" aria-live="polite">
+                    🔴 Esperando...
+                </div>
+            </section>
+            <!-- === /CAPTURADORA MEJORADA === -->
+
+            <!-- Campo etiqueta + controles (sin cambios) -->
             <section class="mb-4">
                 <form class="row g-3 justify-content-center" onsubmit="event.preventDefault();">
                     <div class="col-12 col-md-10 col-lg-8">
@@ -119,7 +152,7 @@
                     </div>
                 </form>
 
-                <!-- Botones de acción -->
+                <!-- Botones de acción (sin cambios) -->
                 <div class="video-controls mt-3 d-flex justify-content-center gap-3 flex-wrap">
                     <button id="startBtn" type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"
                         aria-label="Iniciar captura">

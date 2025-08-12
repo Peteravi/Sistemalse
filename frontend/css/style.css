@@ -9,6 +9,13 @@
     --radius: 16px;
     --shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
     --transition: all 0.25s ease-in-out;
+
+    /* Capturadora */
+    --cap-bg-1: #0a0f1f;
+    --cap-bg-2: #0d1328;
+    --cap-glow: rgba(13, 110, 253, .18);
+    --cap-border: rgba(255, 255, 255, .08);
+    --cap-card: rgba(8, 14, 30, .45);
 }
 
 /* ---------- Base ---------- */
@@ -37,7 +44,6 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Accesibilidad: respetar usuarios que reducen animaciones */
 @media (prefers-reduced-motion: reduce) {
     html {
         scroll-behavior: auto;
@@ -47,7 +53,9 @@ body {
         animation: none !important;
     }
 
-    .pulse {
+    .pulse,
+    .float-up,
+    .soft-appear {
         animation: none !important;
     }
 }
@@ -77,6 +85,30 @@ body {
 
     100% {
         transform: scale(1);
+    }
+}
+
+@keyframes floatUp {
+    from {
+        transform: translateY(8px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes softAppear {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -167,7 +199,7 @@ body {
     transform: translateY(-1px);
 }
 
-/* Layout fix para móviles: mover botón dentro del flujo */
+/* Layout fix para móviles */
 @media (max-width: 768px) {
     .position-top-end {
         position: relative;
@@ -190,6 +222,7 @@ body {
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     font-size: 1.05rem;
+    animation: softAppear .35s ease both;
 }
 
 .descripcion .description-icon .bi {
@@ -231,7 +264,7 @@ body {
     transform: translateY(-1px) scale(.98);
 }
 
-/* ---------- Video ---------- */
+/* ---------- Video (previo general) ---------- */
 .video-viewer {
     border: 3px solid var(--ug-blue);
     border-radius: var(--radius);
@@ -245,7 +278,6 @@ body {
     font-size: clamp(1rem, 1.2vw + .6rem, 1.2rem);
     font-weight: 800;
     color: #d9534f;
-    /* rojo accesible */
     animation: pulse 2s infinite ease-in-out;
 }
 
@@ -291,7 +323,7 @@ body {
     outline-offset: 0;
 }
 
-/* Botón limpiar dentro del prefijo */
+/* Botón limpiar */
 #clearInputBtn {
     background: transparent;
     border: 0;
@@ -378,12 +410,11 @@ footer p {
     object-fit: cover;
 }
 
-/* por si algún navegador viejo */
 .toast-container {
     z-index: 1080;
 }
 
-/* ---------- Estados de foco visibles (accesibilidad) ---------- */
+/* ---------- Accesibilidad focus ---------- */
 a:focus-visible,
 button:focus-visible,
 [role="button"]:focus-visible,
@@ -471,7 +502,7 @@ input:focus-visible {
     }
 }
 
-/* ---------- Dark Mode opcional (si el sistema lo solicita) ---------- */
+/* ---------- Dark Mode opcional ---------- */
 @media (prefers-color-scheme: dark) {
     body {
         color: #eaf4ff;
@@ -499,15 +530,191 @@ input:focus-visible {
         background: rgba(255, 255, 255, .06);
     }
 
-    /* Forzar texto negro en el modal historial */
+    /* Forzar texto negro en el modal historial (contenido iframe puede variar) */
     #modalHistorial,
     #modalHistorial * {
         color: #000 !important;
     }
 
-    /* Si quieres que también lo que se cargue en el iframe tenga letras negras */
     #iframeHistorial {
         color: #000;
     }
+}
 
+/* =========================================================
+   CAPTURADORA — Estilos completos, responsivos y animados
+   (usa IDs/clases: #captureWrapper, #captureStage, #videoFrontend, #overlay, #btnPantallaCompleta)
+   ========================================================= */
+
+.capture-wrapper {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, var(--cap-bg-1), var(--cap-bg-2));
+    box-shadow: 0 10px 30px var(--cap-glow);
+    border: 1px solid var(--cap-border);
+    animation: softAppear .3s ease-out both;
+}
+
+.capture-header .title {
+    letter-spacing: .2px;
+}
+
+.capture-header .badge .dot {
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: #2ecc71;
+    box-shadow: 0 0 0 .25rem rgba(46, 204, 113, .15);
+}
+
+.capture-stage {
+    position: relative;
+    width: 100%;
+    /* Relación 16:9 adaptable; si el contenedor es estrecho, reduce suavemente */
+    aspect-ratio: 16/9;
+    background:
+        radial-gradient(1200px 400px at 80% 0%, rgba(13, 110, 253, .12), transparent 60%),
+        radial-gradient(800px 300px at 20% 100%, rgba(83, 147, 255, .12), transparent 60%),
+        var(--cap-bg-1);
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--cap-border);
+}
+
+/* Video + canvas ocupan todo el stage */
+#videoFrontend,
+#overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* HUD */
+.capture-hud {
+    position: absolute;
+    z-index: 3;
+    color: #eaf2ff;
+    font-size: .85rem;
+    padding: .35rem .6rem;
+    border-radius: .6rem;
+    backdrop-filter: blur(6px);
+    background: var(--cap-card);
+    border: 1px solid rgba(255, 255, 255, .12);
+    animation: floatUp .35s ease both;
+}
+
+.capture-hud.top-left {
+    top: .5rem;
+    left: .5rem;
+}
+
+/* Controles */
+.capture-controls .btn {
+    border-radius: 1000px;
+    padding: .45rem .9rem;
+    backdrop-filter: saturate(120%) blur(6px);
+}
+
+.capture-controls .btn-outline-primary {
+    color: #dce8ff;
+    border-color: rgba(168, 203, 255, .4);
+}
+
+.capture-controls .btn-outline-primary:hover {
+    background: linear-gradient(180deg, rgba(13, 110, 253, .22), rgba(13, 110, 253, .35));
+}
+
+/* Fullscreen */
+.capture-wrapper.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    padding: 0.75rem;
+    z-index: 9999;
+    border-radius: 0;
+    background: #000;
+}
+
+.capture-wrapper.is-fullscreen .capture-stage {
+    border-radius: .5rem;
+}
+
+/* Safe areas (iPhone con notch) */
+@supports(padding:max(0px)) {
+    .capture-wrapper.is-fullscreen {
+        padding-bottom: max(.75rem, env(safe-area-inset-bottom));
+    }
+}
+
+/* Ajuste overlay a tamaño contenedor (fallback si JS no lo recalcula) */
+#overlay {
+    width: 100%;
+    height: 100%;
+}
+
+/* Badges del header (legibilidad) */
+#indicadorResolucion {
+    background: rgba(255, 255, 255, .9) !important;
+    color: #0a0f1f !important;
+    font-weight: 700;
+}
+
+#indicadorGrabando {
+    background: rgba(33, 208, 122, .18) !important;
+    border: 1px solid rgba(33, 208, 122, .35);
+}
+
+/* Microtransiciones generales */
+.capture-wrapper,
+.capture-stage,
+.capture-controls .btn {
+    transition: var(--transition);
+}
+
+/* ---------- Medias específicas capturadora ---------- */
+@media (max-width: 992px) {
+    .capture-wrapper {
+        padding: .85rem;
+    }
+
+    .capture-stage {
+        border-radius: .9rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .capture-header .title {
+        font-size: 1rem;
+    }
+
+    .capture-controls .btn {
+        padding: .5rem .8rem;
+        font-size: .9rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .capture-stage {
+        border-radius: .75rem;
+    }
+}
+
+/* (opcional) Estilo del icono fullscreen activo/inactivo si cambias la clase via JS */
+.bi-fullscreen-exit {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, .25));
+}
+
+.capture-wrapper.is-fullscreen .capture-stage {
+    aspect-ratio: auto;
+    height: 100%;
+}
+
+@supports(height:100dvh) {
+    .capture-wrapper.is-fullscreen {
+        height: 100dvh;
+    }
 }
