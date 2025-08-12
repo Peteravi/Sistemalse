@@ -82,11 +82,10 @@
                         onclick="verHistorial()" aria-label="Ver historial">
                         <i class="bi bi-folder2-open me-2" aria-hidden="true"></i> Ver Historial
                     </button>
-
                 </div>
             </section>
 
-            <!-- === CAPTURADORA MEJORADA (solo se reemplaza esta sección) === -->
+            <!-- === CAPTURADORA MEJORADA === -->
             <section class="text-center mb-5">
                 <section class="capture-wrapper" id="captureWrapper" aria-label="Capturadora de video">
                     <div class="capture-header d-flex align-items-center justify-content-between">
@@ -103,7 +102,6 @@
                     </div>
 
                     <div class="capture-stage position-relative" id="captureStage" style="aspect-ratio:16/9;">
-                        <!-- Video/canvas con relación 16:9, mantiene ID original para compatibilidad -->
                         <video id="videoFrontend" class="video-viewer w-100 h-100 object-fit-cover" autoplay muted
                             playsinline aria-label="Vista previa de cámara para captura de gestos"></video>
                         <canvas id="overlay" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
@@ -113,7 +111,7 @@
                             <i class="bi bi-speedometer2 me-1"></i><span id="indicadorFps">FPS: —</span>
                         </div>
 
-                        <!-- Botón flotante de Pantalla Completa -->
+                        <!-- Botón Pantalla Completa -->
                         <div class="capture-controls position-absolute start-50 translate-middle-x"
                             style="bottom:.65rem;">
                             <button class="btn btn-outline-primary btn-sm rounded-pill px-3" id="btnPantallaCompleta"
@@ -125,19 +123,19 @@
                     </div>
                 </section>
 
-                <!-- Estado (mantengo tu elemento original) -->
+                <!-- Estado -->
                 <div id="estadoReconocimiento" class="mt-3 fw-bold text-danger" role="status" aria-live="polite">
                     🔴 Esperando...
                 </div>
             </section>
-            <!-- === /CAPTURADORA MEJORADA === -->
 
-            <!-- Campo etiqueta + controles (sin cambios) -->
+            <!-- Campo etiqueta + categoría + controles -->
             <section class="mb-4">
                 <form class="row g-3 justify-content-center" onsubmit="event.preventDefault();">
                     <div class="col-12 col-md-10 col-lg-8">
-                        <div class="input-group px-2">
-                            <span class="input-group-text">
+                        <!-- Campo de etiqueta -->
+                        <div class="input-group px-2 mb-3">
+                            <span class="input-group-text bg-primary text-white">
                                 <i class="bi bi-chat-square-text" aria-hidden="true"></i>
                                 <button type="button" id="clearInputBtn"
                                     class="btn btn-sm btn-outline-light border-0 p-0 ms-2" title="Borrar texto"
@@ -149,43 +147,56 @@
                                 placeholder="Nombre del gesto a capturar" required maxlength="50" inputmode="text"
                                 autocomplete="off" />
                         </div>
+
+                        <!-- Combobox de categoría -->
+                        <div class="mb-3">
+                            <label for="categoriaSelect" class="form-label fw-bold">
+                                <i class="bi bi-tags-fill me-2"></i> Tipo de Gesto
+                            </label>
+                            <select id="categoriaSelect" name="categoria" class="form-select" required>
+                                <option value="" selected disabled>Seleccione una categoría</option>
+                                <option value="letra">Letra</option>
+                                <option value="numero">Número</option>
+                                <option value="palabra">Palabra</option>
+                                <option value="expresion_facial">Expresión facial</option>
+                                <option value="saludo">Saludo</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
                     </div>
                 </form>
-
-                <!-- Botones de acción (sin cambios) -->
-                <div class="video-controls mt-3 d-flex justify-content-center gap-3 flex-wrap">
-                    <button id="startBtn" type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"
-                        aria-label="Iniciar captura">
-                        <i class="bi bi-play-fill me-1" aria-hidden="true"></i> Iniciar
-                    </button>
-
-                    <button id="stopBtn" type="button" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm"
-                        aria-label="Detener captura">
-                        <i class="bi bi-stop-fill me-1" aria-hidden="true"></i> Detener
-                    </button>
-
-                    <div class="btn-group shadow-sm">
-                        <button id="downloadBtn" type="button"
-                            class="btn btn-success btn-sm rounded-pill px-3 dropdown-toggle" data-bs-toggle="dropdown"
-                            data-bs-auto-close="true" aria-expanded="false" aria-haspopup="true">
-                            <i class="bi bi-download me-1" aria-hidden="true"></i> Descargar
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow">
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center" href="#" id="downloadCsvOption">
-                                    <i class="bi bi-file-earmark-spreadsheet text-success me-2" aria-hidden="true"></i>
-                                    CSV
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center" href="#" id="downloadJsonOption">
-                                    <i class="bi bi-file-earmark-code text-warning me-2" aria-hidden="true"></i> JSON
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
             </section>
+
+            <!-- Botones -->
+            <div class="video-controls mt-3 d-flex justify-content-center gap-3 flex-wrap">
+                <button id="startBtn" type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-play-fill me-1"></i> Iniciar
+                </button>
+
+                <button id="stopBtn" type="button" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-stop-fill me-1"></i> Detener
+                </button>
+
+                <div class="btn-group shadow-sm">
+                    <button id="downloadBtn" type="button"
+                        class="btn btn-success btn-sm rounded-pill px-3 dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-download me-1"></i> Descargar
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" href="#" id="downloadCsvOption">
+                                <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i> CSV
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" href="#" id="downloadJsonOption">
+                                <i class="bi bi-file-earmark-code text-warning me-2"></i> JSON
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -194,28 +205,26 @@
         <div class="container">
             <div class="mb-3">
                 <span class="d-inline-block mx-2">
-                    <i class="bi bi-envelope-fill me-1" aria-hidden="true"></i> soporte.aplicaciones@ug.edu.ec
+                    <i class="bi bi-envelope-fill me-1"></i> soporte.aplicaciones@ug.edu.ec
                 </span>
             </div>
             <div class="mb-3">
                 <span class="d-block">
-                    <i class="bi bi-person-fill me-1" aria-hidden="true"></i> Realizado por: <strong>Peter Avilés
+                    <i class="bi bi-person-fill me-1"></i> Realizado por: <strong>Peter Avilés
                         Alarcón</strong> y <strong>Yazmin Pinela Vargas</strong>
                 </span>
-                <span class="d-block"><i class="bi bi-mortarboard-fill me-1" aria-hidden="true"></i> Carrera: Sistemas
-                    de Información</span>
-                <span class="d-block"><i class="bi bi-building me-1" aria-hidden="true"></i> Facultad: Ingeniería
-                    Industrial</span>
-                <span class="d-block"><i class="bi bi-geo-alt-fill me-1" aria-hidden="true"></i> Ubicación: Av. Las
-                    Aguas, Guayaquil 090501</span>
-                <span class="d-block"><i class="bi bi-telephone-forward-fill me-1" aria-hidden="true"></i> Teléfono:
-                    (04) 227-7309</span>
+                <span class="d-block"><i class="bi bi-mortarboard-fill me-1"></i> Carrera: Sistemas de
+                    Información</span>
+                <span class="d-block"><i class="bi bi-building me-1"></i> Facultad: Ingeniería Industrial</span>
+                <span class="d-block"><i class="bi bi-geo-alt-fill me-1"></i> Ubicación: Av. Las Aguas, Guayaquil
+                    090501</span>
+                <span class="d-block"><i class="bi bi-telephone-forward-fill me-1"></i> Teléfono: (04) 227-7309</span>
             </div>
             <p class="mb-0">© 2025 Universidad de Guayaquil | Proyecto de Tesis</p>
         </div>
     </footer>
 
-    <!-- Modal para Historial -->
+    <!-- Modal Historial -->
     <div class="modal fade" id="modalHistorial" tabindex="-1" aria-labelledby="modalHistorialLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -237,14 +246,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         crossorigin="anonymous"></script>
 
-    <!-- MediaPipe (solo si lo usas en frontend) -->
+    <!-- MediaPipe Hands (imprescindible para captura) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
 
-    <!-- JS -->
+    <!-- Tu lógica -->
     <script type="module" src="js/ui.js"></script>
-
 </body>
 
 </html>

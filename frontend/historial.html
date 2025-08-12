@@ -23,7 +23,7 @@
             </div>
         </div>
 
-        <!-- Filtros mejorados con iconos -->
+        <!-- Filtros -->
         <form id="formFiltros" class="row g-2 align-items-end mb-3" autocomplete="off">
             <!-- Etiqueta -->
             <div class="col-12 col-md-4">
@@ -43,8 +43,27 @@
                 </div>
             </div>
 
+            <!-- Categoría -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label for="fCategoria" class="form-label mb-1">
+                    <i class="bi bi-diagram-3 me-1"></i> Categoría
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+                    <select id="fCategoria" class="form-select form-select-sm" aria-label="Filtrar por categoría">
+                        <option value="">(Todas)</option>
+                        <option value="letra">Letra</option>
+                        <option value="numero">Número</option>
+                        <option value="palabra">Palabra</option>
+                        <option value="expresion_facial">Expresión facial</option>
+                        <option value="saludo">Saludo</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Desde -->
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label for="fDesde" class="form-label mb-1">
                     <i class="bi bi-calendar-event me-1"></i> Desde
                 </label>
@@ -59,7 +78,7 @@
             </div>
 
             <!-- Hasta -->
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label for="fHasta" class="form-label mb-1">
                     <i class="bi bi-calendar2-event me-1"></i> Hasta
                 </label>
@@ -88,13 +107,14 @@
                 </div>
             </div>
 
-            <!-- Botones acción -->
+            <!-- Botón acción -->
             <div class="col-6 col-md-1 d-grid">
                 <button type="submit" class="btn btn-primary btn-sm btn-ripple" id="btnFiltrar">
                     <i class="bi bi-funnel-fill me-1"></i> Filtrar
                 </button>
             </div>
-            
+        </form>
+
         <!-- Tabla -->
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-2">

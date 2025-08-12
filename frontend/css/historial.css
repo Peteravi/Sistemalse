@@ -1,4 +1,5 @@
 :root {
+    /* Marca */
     --brand-start: #0772c4;
     --brand-mid: #1b84d6;
     --brand-end: #2d96e8;
@@ -25,15 +26,40 @@
     --trans: all 0.2s ease;
 }
 
-/* ---- Fondo ---- */
+/* ========= Base ========= */
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
 body {
     margin: 0;
     color: var(--text-1);
     background: var(--bg-page);
     font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* ---- Contenedor ---- */
+:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+}
+
+/* Reduce motion si el usuario lo pide */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ========= Contenedor principal ========= */
 .container {
     background: var(--bg-container);
     border: 1px solid var(--border-1);
@@ -44,15 +70,15 @@ body {
     margin-bottom: 20px;
 }
 
-/* ---- Título ---- */
+/* ========= Títulos / badges ========= */
 h5 {
     font-weight: 600;
     letter-spacing: 0.1px;
     color: var(--text-1);
     font-size: 1.25rem;
+    margin: 0;
 }
 
-/* ---- Badge ---- */
 .badge.text-bg-light {
     background: #f1f8ff !important;
     color: var(--brand-start) !important;
@@ -61,10 +87,11 @@ h5 {
     font-weight: 500;
 }
 
-/* ---- Botones ---- */
+/* ========= Botones ========= */
 .btn-ripple {
     position: relative;
     overflow: hidden;
+    isolation: isolate;
 }
 
 .btn-ripple::after {
@@ -76,6 +103,8 @@ h5 {
     opacity: 0;
     transition: transform .4s, opacity .8s;
     border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
 }
 
 .btn-ripple:active::after {
@@ -83,7 +112,6 @@ h5 {
     opacity: 1;
 }
 
-/* Primario con tu azul */
 .btn.btn-primary {
     background: var(--brand-grad);
     border: none;
@@ -143,13 +171,14 @@ h5 {
     box-shadow: var(--ring);
 }
 
-/* ---- Filtros ---- */
+/* ========= Formularios / filtros ========= */
 .card-like {
     background: #fff;
     border: 1px solid var(--border-1);
     border-radius: var(--radius-xl);
 }
 
+/* Labels */
 #formFiltros .form-label {
     color: var(--text-2);
     font-weight: 500;
@@ -157,13 +186,14 @@ h5 {
     font-size: 0.875rem;
 }
 
+/* Inputs y selects */
 #formFiltros .form-control,
 #formFiltros .form-select {
     background: #fff;
     color: var(--text-1);
     border: 1px solid var(--border-1);
     border-radius: var(--radius-lg);
-    font-size: 0.875rem;
+    font-size: 0.925rem;
     transition: var(--trans);
 }
 
@@ -187,14 +217,18 @@ h5 {
 }
 
 .input-group .form-control {
+    border-top: 1px solid var(--border-1);
+    border-bottom: 1px solid var(--border-1);
     border-left: none;
     border-right: none;
+    border-radius: 0;
 }
 
 .input-group .btn {
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
     color: var(--brand-start);
     border-color: var(--border-1);
+    background: #fff;
 }
 
 .input-group .btn:hover {
@@ -203,11 +237,17 @@ h5 {
     background: var(--brand-mid);
 }
 
-/* ---- Tabla ---- */
+/* ========= Tabla ========= */
 .table {
     margin-bottom: 0;
     border-collapse: separate;
     border-spacing: 0 8px;
+    /* filas “tarjeteadas” */
+}
+
+/* Wrapper por si usas overflow en tablas largas */
+.table-responsive {
+    scrollbar-gutter: stable both-edges;
 }
 
 .table thead th {
@@ -256,7 +296,7 @@ h5 {
     }
 }
 
-/* ---- Skeleton ---- */
+/* ========= Skeleton ========= */
 .skeleton {
     display: inline-block;
     height: 12px;
@@ -281,7 +321,7 @@ h5 {
     padding-bottom: 16px;
 }
 
-/* ---- Paginación / Info ---- */
+/* ========= Paginación / info ========= */
 #histInfo {
     color: var(--text-2);
     font-size: 0.875rem;
@@ -300,7 +340,7 @@ h5 {
     background: #ecf4ff;
 }
 
-/* ---- Modal ---- */
+/* ========= Modal ========= */
 .modal-content {
     background: #ffffff;
     border: 1px solid var(--border-1);
@@ -308,7 +348,7 @@ h5 {
     box-shadow: var(--shadow);
 }
 
-/* Degradado azul suave en el header */
+/* Header degradado y accesible */
 .modal-header {
     background: var(--brand-grad);
     border-bottom: 1px solid var(--border-1);
@@ -321,12 +361,14 @@ h5 {
     color: #fff;
     font-weight: 600;
     font-size: 1.1rem;
+    margin: 0;
 }
 
 .modal-body {
     padding: 20px;
 }
 
+/* Animación de zoom controlada */
 .modal-zoom .modal-dialog {
     transform: scale(0.98);
     transition: transform .15s ease;
@@ -336,6 +378,7 @@ h5 {
     transform: scale(1);
 }
 
+/* Bloque de metadatos */
 #detalleMeta {
     color: var(--text-2);
     background: #f8fafc;
@@ -345,7 +388,7 @@ h5 {
     font-size: 0.875rem;
 }
 
-/* ---- Botón Refrescar ---- */
+/* Botón Refrescar */
 #btnRefrescar {
     border-radius: 999px;
     padding: 0.35rem 0.8rem;
@@ -361,7 +404,17 @@ h5 {
     background: #e7f3ff;
 }
 
-/* ---- Scrollbar ---- */
+/* ========= iFrame dentro de modales (historial) ========= */
+#iframeHistorial {
+    width: 100%;
+    height: 100%;
+    min-height: 70vh;
+    border: 0;
+    display: block;
+    border-radius: 0 0 var(--radius-xxl) var(--radius-xxl);
+}
+
+/* ========= Scrollbar ========= */
 * {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
@@ -377,14 +430,20 @@ h5 {
     border-radius: 999px;
 }
 
-/* ---- Responsivo ---- */
+/* ========= Responsivo ========= */
+@media (max-width: 1200px) {
+    .table thead th:first-child {
+        min-width: 180px;
+    }
+}
+
 @media (max-width: 992px) {
     .container {
         padding: 16px;
     }
 
-    .table thead th:first-child {
-        min-width: 160px;
+    .table thead th {
+        font-size: 0.85rem;
     }
 }
 
@@ -395,8 +454,13 @@ h5 {
         font-size: 0.875rem;
     }
 
+    .table tbody td {
+        font-size: 0.95rem;
+    }
+
+    /* Evita que el header tape el contenido sticky */
     .table thead th {
-        font-size: 0.85rem;
+        top: 0;
     }
 }
 
@@ -415,5 +479,14 @@ h5 {
 
     #formFiltros .col-6 {
         width: 50%;
+    }
+
+    /* Que los input-group no rompan el layout */
+    .input-group {
+        flex-wrap: nowrap;
+    }
+
+    .modal-body {
+        padding: 16px;
     }
 }

@@ -1,7 +1,7 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from bd.conexion import get_connection
-from datetime import datetime, timedelta
-import csv, io, json, re
+from datetime import datetime
+import json, re
 from typing import Any, Tuple, Optional
 
 api_bp = Blueprint("api_bp", __name__)
@@ -17,7 +17,8 @@ def _parse_date_or_none(s: str | None):
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except Exception:
         try:
-            return datetime.strptime(s, "%Y-%m-%d")
+            from datetime import datetime as _dt
+            return _dt.strptime(s, "%Y-%m-%d")
         except Exception:
             return None
 
@@ -59,7 +60,6 @@ CANT_RE = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*(?:unid(?:ades)?|u|pcs|kg|g|l|ml)
 def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: Optional[str]) -> Tuple[str, str, str]:
     """
     Devuelve (nombre_normalizado, tipo_final, valor_final)
-    Reglas:
       - Si viene tipo/valor válidos, se priorizan.
       - Si no, se infiere desde 'nombre'.
     """
@@ -76,7 +76,6 @@ def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: 
         except:
             pass
     elif tipo == "fecha":
-        # aceptamos YYYY-MM-DD
         try:
             dt = _parse_date_or_none(valor)
             if dt:
@@ -85,16 +84,14 @@ def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: 
         except:
             pass
     elif tipo == "cantidad":
-        # decimal con punto
         try:
             v = float(valor.replace(",", "."))
             return (f"CANT:{v}", "cantidad", str(v))
         except:
             pass
 
-    # 2) Intentar inferir desde 'raw'
+    # 2) Inferir desde 'raw'
     if raw:
-        # ¿número 1..100?
         m = NUM_RE.match(raw)
         if m:
             try:
@@ -103,7 +100,6 @@ def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: 
                     return (f"NUM:{n}", "numero", str(n))
             except:
                 pass
-        # ¿fecha YYYY-MM-DD?
         m = FECHA_RE.match(raw)
         if m:
             try:
@@ -114,7 +110,6 @@ def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: 
                     return (f"FECHA:{y}-{mo}-{d}", "fecha", f"{y}-{mo}-{d}")
             except:
                 pass
-        # ¿cantidad decimal?
         m = CANT_RE.match(raw)
         if m:
             try:
@@ -122,74 +117,159 @@ def _build_normalized_nombre(tipo: Optional[str], valor: Optional[str], nombre: 
                 return (f"CANT:{v}", "cantidad", str(v))
             except:
                 pass
-        # fallback texto
         return (f"TEXTO:{raw}", "texto", raw)
 
-    # 3) último recurso
+    # 3) Último recurso
     return ("TEXTO:", "texto", "")
 
-def _parse_normalized_nombre(nombre_norm: str) -> Tuple[str, str]:
+# ===== Helpers de categoría =====
+def _infer_categoria_y_subcategoria(nombre_norm: str, tipo_final: str | None, valor_final: str | None) -> tuple[str, str | None]:
     """
-    Extrae (tipo, valor) desde el nombre normalizado.
+    Reglas simples:
+      - Una sola letra A-Z/Ñ -> ('letra', 'A')
+      - Un solo dígito 0-9   -> ('numero', '0')
+      - Palabras de saludo   -> ('saludo','hola')
+      - 'tipo' numero/fecha/cantidad guía la categoría
+      - Por defecto -> 'palabra' si es palabra corta, si no 'otro'
     """
-    if not nombre_norm:
-        return ("texto", "")
-    if nombre_norm.startswith("NUM:"):
-        return ("numero", nombre_norm[4:])
-    if nombre_norm.startswith("FECHA:"):
-        return ("fecha", nombre_norm[6:])
-    if nombre_norm.startswith("CANT:"):
-        return ("cantidad", nombre_norm[5:])
-    if nombre_norm.startswith("TEXTO:"):
-        return ("texto", nombre_norm[6:])
-    # Desconocido -> texto
-    return ("texto", nombre_norm)
+    n = (nombre_norm or "").strip()
+    if tipo_final in {"numero", "cantidad"}:
+        if valor_final and re.fullmatch(r"\d+", str(valor_final)):
+            return ("numero", str(valor_final))
+        if re.fullmatch(r"\d", n):
+            return ("numero", n)
+        return ("numero", None)
+    if tipo_final == "fecha":
+        return ("otro", None)
+
+    if re.fullmatch(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]", n):
+        return ("letra", n.upper())
+    if re.fullmatch(r"\d", n):
+        return ("numero", n)
+
+    lower = n.lower()
+    if lower in {"hola", "adios", "buenos dias", "buenas tardes", "buenas noches"}:
+        return ("saludo", lower)
+    if lower in {"gracias", "por favor", "ayuda", "si", "no"}:
+        return ("palabra", lower)
+
+    if re.fullmatch(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,12}", n):
+        return ("palabra", lower)
+
+    return ("otro", None)
+
+def _categoria_id_por_slug(cur, slug: str | None) -> int | None:
+    """Obtiene id de categoría por slug (tolera cursor tupla o dict)."""
+    if not slug:
+        return None
+    cur.execute("SELECT id FROM categorias WHERE slug=%s", (slug,))
+    r = cur.fetchone()
+    if not r:
+        return None
+    return _row_field(r, 0) if isinstance(r, (list, tuple)) else _row_field(r, "id")
 
 # =========================
-# Crear secuencia
+# POST /api/crear_secuencia
 # =========================
 @api_bp.route("/crear_secuencia", methods=["POST"])
 def crear_secuencia():
-    """
-    Body JSON:
-      Opción clásica: { "nombre": "hola" }
-      Nuevos campos (opc): { "tipo": "numero|fecha|cantidad|texto", "valor": "..." }
-    """
+    from traceback import format_exc
     try:
         data = request.get_json(silent=True) or {}
-        nombre = (data.get("nombre") or "").strip()
-        tipo   = (data.get("tipo") or "").strip().lower() or None
-        valor  = (data.get("valor") or "").strip() or None
 
-        if not nombre and not valor:
+        nombre_in = (data.get("nombre") or "").strip()
+        tipo_in   = (data.get("tipo") or "").strip().lower() or None
+        valor_in  = (data.get("valor") or "").strip() or None
+
+        categoria_slug = (data.get("categoria_slug") or "").strip().lower() or None
+        subcategoria   = (data.get("subcategoria") or "").strip() or None
+        usuario_id     = data.get("usuario_id")  # opcional
+        fecha          = _parse_date_or_none(data.get("fecha")) or datetime.utcnow()
+
+        if not nombre_in and not valor_in:
             return jsonify({"ok": False, "error": "Se requiere 'nombre' o ('tipo' y 'valor')"}), 400
 
-        nombre_norm, tipo_final, valor_final = _build_normalized_nombre(tipo, valor, nombre)
-
-        usuario_id = data.get("usuario_id")
-        fecha = _parse_date_or_none(data.get("fecha")) or datetime.utcnow()
+        nombre_norm, tipo_final, valor_final = _build_normalized_nombre(tipo_in, valor_in, nombre_in)
 
         with get_connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO secuencias (nombre, fecha, usuario_id) VALUES (%s, %s, %s) RETURNING id",
-                (nombre_norm, fecha, usuario_id),
-            )
-            row = cur.fetchone()
-            secuencia_id = _get_one_value(row, None)
-            conn.commit()
+            # Inferir categoría si no viene
+            try:
+                if not categoria_slug:
+                    categoria_slug, sub_inf = _infer_categoria_y_subcategoria(nombre_norm, tipo_final, valor_final)
+                    if not subcategoria and sub_inf:
+                        subcategoria = sub_inf
+            except Exception:
+                categoria_slug = None
 
-        return jsonify({
-            "ok": True,
-            "secuencia_id": secuencia_id,
-            "nombre": nombre_norm,
-            "tipo": tipo_final,
-            "valor": valor_final
-        })
+            # Resolver categoria_id
+            categoria_id = None
+            if categoria_slug:
+                try:
+                    categoria_id = _categoria_id_por_slug(cur, categoria_slug)
+                    if categoria_id is None:
+                        categoria_id = _categoria_id_por_slug(cur, "otro")
+                except Exception:
+                    categoria_id = None
+
+            # Insert principal (con categoría)
+            try:
+                cur.execute("""
+                    INSERT INTO secuencias (nombre, fecha, usuario_id, categoria_id, subcategoria)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, fecha, categoria_id, subcategoria
+                """, (nombre_norm, fecha, usuario_id, categoria_id, subcategoria))
+                row = cur.fetchone()
+                secuencia_id    = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
+                fecha_db        = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
+                categoria_id_db = _row_field(row, 2) if isinstance(row, (list, tuple)) else _row_field(row, "categoria_id")
+                subcategoria_db = _row_field(row, 3) if isinstance(row, (list, tuple)) else _row_field(row, "subcategoria")
+
+            except Exception:
+                # Fallback para esquema viejo (sin columnas de categoría)
+                cur.execute("""
+                    INSERT INTO secuencias (nombre, fecha, usuario_id)
+                    VALUES (%s, %s, %s)
+                    RETURNING id, fecha
+                """, (nombre_norm, fecha, usuario_id))
+                row = cur.fetchone()
+                secuencia_id    = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
+                fecha_db        = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
+                categoria_id_db = None
+                subcategoria_db = None
+
+            # Enriquecer categoría (opcional)
+            cat_slug_resp = cat_nombre_resp = None
+            if categoria_id_db:
+                try:
+                    cur.execute("SELECT slug, nombre FROM categorias WHERE id=%s", (categoria_id_db,))
+                    r = cur.fetchone()
+                    cat_slug_resp   = _row_field(r, 0) if isinstance(r, (list, tuple)) else _row_field(r, "slug")
+                    cat_nombre_resp = _row_field(r, 1) if isinstance(r, (list, tuple)) else _row_field(r, "nombre")
+                except Exception:
+                    pass
+
+            conn.commit()
+            return jsonify({
+                "ok": True,
+                "secuencia_id": secuencia_id,
+                "nombre": nombre_norm,
+                "tipo": tipo_final,
+                "valor": valor_final,
+                "categoria": {
+                    "id": categoria_id_db,
+                    "slug": cat_slug_resp,
+                    "nombre": cat_nombre_resp,
+                    "subcategoria": subcategoria_db
+                },
+                "fecha": (fecha_db.isoformat() if hasattr(fecha_db, "isoformat") else str(fecha_db))
+            })
+
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        from traceback import format_exc
+        return jsonify({"ok": False, "error": str(e), "trace": format_exc()}), 500
 
 # =========================
-# Guardar frame (usa num_frame y JSONB)
+# POST /api/guardar_frame
 # =========================
 @api_bp.route("/guardar_frame", methods=["POST"])
 def guardar_frame():
@@ -198,7 +278,10 @@ def guardar_frame():
     {
       "secuencia_id": 123  ó  ("etiqueta"/"nombre" o "tipo"+"valor"),
       "frame": 0,                            # -> num_frame
-      "landmarks": [ {x:..., y:..., z:...}, ... ]
+      "landmarks": [ {x:..., y:..., z:...}, ... ],
+      "categoria_slug": "letra|numero|palabra|expresion_facial|saludo|otro",  # opcional
+      "subcategoria": "A|0|hola|...",                                        # opcional
+      "usuario_id": 1                                                         # opcional
     }
     """
     try:
@@ -208,6 +291,10 @@ def guardar_frame():
         etiqueta = (data.get("etiqueta") or data.get("nombre") or "").strip()
         tipo  = (data.get("tipo") or "").strip().lower() or None
         valor = (data.get("valor") or "").strip() or None
+
+        categoria_slug = (data.get("categoria_slug") or "").strip().lower() or None
+        subcategoria   = (data.get("subcategoria") or "").strip() or None
+        usuario_id     = data.get("usuario_id")
 
         # Normaliza frame -> num_frame
         try:
@@ -247,13 +334,44 @@ def guardar_frame():
         with get_connection() as conn, conn.cursor() as cur:
             # Crear secuencia si no se envió secuencia_id
             if not secuencia_id:
-                nombre_norm, _, _ = _build_normalized_nombre(tipo, valor, etiqueta)
-                cur.execute(
-                    "INSERT INTO secuencias (nombre) VALUES (%s) RETURNING id",
-                    (nombre_norm,)
-                )
-                row = cur.fetchone()
-                secuencia_id = _get_one_value(row, None)
+                nombre_norm, tipo_final, valor_final = _build_normalized_nombre(tipo, valor, etiqueta)
+                # Inferir categoría si no la mandaron
+                try:
+                    if not categoria_slug:
+                        categoria_slug, sub_inf = _infer_categoria_y_subcategoria(nombre_norm, tipo_final, valor_final)
+                        if not subcategoria and sub_inf:
+                            subcategoria = sub_inf
+                except Exception:
+                    categoria_slug = None
+
+                # Resolver categoria_id (tolerante)
+                categoria_id = None
+                if categoria_slug:
+                    try:
+                        categoria_id = _categoria_id_por_slug(cur, categoria_slug)
+                        if categoria_id is None:
+                            categoria_id = _categoria_id_por_slug(cur, "otro")
+                    except Exception:
+                        categoria_id = None
+
+                # Intento con columnas de categoría
+                try:
+                    cur.execute("""
+                        INSERT INTO secuencias (nombre, fecha, usuario_id, categoria_id, subcategoria)
+                        VALUES (%s, NOW(), %s, %s, %s)
+                        RETURNING id
+                    """, (nombre_norm, usuario_id, categoria_id, subcategoria))
+                    row = cur.fetchone()
+                    secuencia_id = _get_one_value(row, None)
+                except Exception:
+                    # Fallback a esquema viejo (sin columnas de categoría)
+                    cur.execute(
+                        "INSERT INTO secuencias (nombre) VALUES (%s) RETURNING id",
+                        (nombre_norm,)
+                    )
+                    row = cur.fetchone()
+                    secuencia_id = _get_one_value(row, None)
+
                 if not secuencia_id:
                     return jsonify({"ok": False, "error": "no se pudo crear la secuencia"}), 500
 
@@ -268,284 +386,5 @@ def guardar_frame():
         fid = _get_one_value(fid_row, None)
         return jsonify({"ok": True, "id": fid, "secuencia_id": secuencia_id, "num_frame": num_frame})
 
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-# =========================
-# Historial (listado)
-# =========================
-@api_bp.route("/historial", methods=["GET"])
-def historial_listado():
-    """
-    GET /api/historial?nombre=&desde=&hasta=&pagina=1&tamanio=10&solo_con_frames=1
-    """
-    try:
-        nombre = (request.args.get("nombre") or "").strip()
-        desde = _parse_date_or_none(request.args.get("desde"))
-        hasta = _parse_date_or_none(request.args.get("hasta"))
-        solo_con_frames = request.args.get("solo_con_frames", "").lower() in ("1", "true")
-
-        # Hacer 'hasta' inclusivo si viene solo fecha
-        if hasta and hasta.hour == 0 and hasta.minute == 0 and hasta.second == 0 and hasta.microsecond == 0:
-            hasta = hasta + timedelta(days=1) - timedelta(microseconds=1)
-
-        try:
-            pagina = max(1, int(request.args.get("pagina", 1)))
-        except:
-            pagina = 1
-        try:
-            tamanio = min(100, max(1, int(request.args.get("tamanio", 20))))
-        except:
-            tamanio = 20
-        offset = (pagina - 1) * tamanio
-
-        where = []
-        params = []
-        if nombre:
-            where.append("s.nombre ILIKE %s")
-            params.append(f"%{nombre}%")
-        if desde:
-            where.append("s.fecha >= %s")
-            params.append(desde)
-        if hasta:
-            where.append("s.fecha <= %s")
-            params.append(hasta)
-        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-
-        # total
-        if solo_con_frames:
-            sql_total = f"""
-                SELECT COUNT(*) AS total FROM (
-                  SELECT s.id
-                  FROM secuencias s
-                  LEFT JOIN frames f ON f.secuencia_id = s.id
-                  {where_sql}
-                  GROUP BY s.id
-                  HAVING COUNT(f.id) > 0
-                ) t
-            """
-            total_params = params
-        else:
-            sql_total = f"SELECT COUNT(*) AS total FROM secuencias s {where_sql}"
-            total_params = params
-
-        having_sql = "HAVING COUNT(f.id) > 0" if solo_con_frames else ""
-        sql_list = f"""
-            SELECT
-              s.id,
-              s.nombre,
-              s.fecha,
-              s.usuario_id,
-              COALESCE(u.usuario, u.nombre) AS usuario_nombre,
-              COUNT(f.id) AS frames
-            FROM secuencias s
-            LEFT JOIN usuarios u ON u.id = s.usuario_id
-            LEFT JOIN frames   f ON f.secuencia_id = s.id
-            {where_sql}
-            GROUP BY s.id, s.nombre, s.fecha, s.usuario_id, u.usuario, u.nombre
-            {having_sql}
-            ORDER BY s.fecha DESC
-            LIMIT %s OFFSET %s
-        """
-
-        with get_connection() as conn, conn.cursor() as cur:
-            cur.execute(sql_total, total_params)
-            total = _get_one_value(cur.fetchone(), 0)
-
-            cur.execute(sql_list, params + [tamanio, offset])
-            rows = cur.fetchall()
-
-        items = []
-        for row in rows:
-            sid = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
-            nom = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "nombre")
-            fec = _row_field(row, 2) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
-            uid = _row_field(row, 3) if isinstance(row, (list, tuple)) else _row_field(row, "usuario_id")
-            unom = _row_field(row, 4) if isinstance(row, (list, tuple)) else _row_field(row, "usuario_nombre")
-            frs = _row_field(row, 5) if isinstance(row, (list, tuple)) else _row_field(row, "frames")
-
-            tipo, valor = _parse_normalized_nombre(nom or "")
-            items.append({
-                "id": sid,
-                "nombre": nom,
-                "tipo": tipo,
-                "valor": valor,
-                "fecha": fec.isoformat() if hasattr(fec, "isoformat") else (str(fec) if fec else None),
-                "usuario_id": uid,
-                "usuario": unom,
-                "frames": int(frs or 0),
-            })
-
-        return jsonify({"ok": True, "pagina": pagina, "tamanio": tamanio, "total": int(total or 0), "items": items})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-# =========================
-# Historial (detalle)
-# =========================
-@api_bp.route("/historial/<int:secuencia_id>", methods=["GET"])
-def historial_detalle(secuencia_id: int):
-    """GET /api/historial/<secuencia_id>?pagina=1&tamanio=200"""
-    try:
-        pagina = max(1, int(request.args.get("pagina", 1))) if request.args.get("pagina") else 1
-        tamanio = min(1000, max(1, int(request.args.get("tamanio", 200)))) if request.args.get("tamanio") else 200
-        offset = (pagina - 1) * tamanio
-
-        sql_sec = """
-            SELECT s.id, s.nombre, s.fecha,
-                   COALESCE(u.usuario, u.nombre) AS usuario_nombre
-            FROM secuencias s
-            LEFT JOIN usuarios u ON u.id = s.usuario_id
-            WHERE s.id = %s
-        """
-        sql_total = "SELECT COUNT(*) AS total FROM frames WHERE secuencia_id = %s"
-        sql_frames = """
-            SELECT id, num_frame, landmarks
-            FROM frames
-            WHERE secuencia_id = %s
-            ORDER BY num_frame ASC
-            LIMIT %s OFFSET %s
-        """
-
-        with get_connection() as conn, conn.cursor() as cur:
-            cur.execute(sql_sec, (secuencia_id,))
-            row = cur.fetchone()
-            if not row:
-                return jsonify({"ok": False, "error": "Secuencia no encontrada"}), 404
-
-            s_id  = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
-            s_nom = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "nombre")
-            s_fec = _row_field(row, 2) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
-            s_usr = _row_field(row, 3) if isinstance(row, (list, tuple)) else _row_field(row, "usuario_nombre")
-
-            cur.execute(sql_total, (secuencia_id,))
-            total_frames = _get_one_value(cur.fetchone(), 0)
-
-            cur.execute(sql_frames, (secuencia_id, tamanio, offset))
-            rows = cur.fetchall()
-
-        frames = []
-        for r in rows:
-            f_id = _row_field(r, 0) if isinstance(r, (list, tuple)) else _row_field(r, "id")
-            nf   = _row_field(r, 1) if isinstance(r, (list, tuple)) else _row_field(r, "num_frame")
-            lmk  = _row_field(r, 2) if isinstance(r, (list, tuple)) else _row_field(r, "landmarks")
-            frames.append({"id": f_id, "frame": nf, "num_frame": nf, "landmarks": lmk})
-
-        fecha_iso = s_fec.isoformat() if hasattr(s_fec, "isoformat") else (str(s_fec) if s_fec else None)
-        tipo, valor = _parse_normalized_nombre(s_nom or "")
-
-        return jsonify({
-            "ok": True,
-            "secuencia": {
-                "id": s_id,
-                "nombre": s_nom,
-                "tipo": tipo,
-                "valor": valor,
-                "fecha": fecha_iso,
-                "usuario": s_usr,
-                "total_frames": int(total_frames or 0),
-                "frames": frames
-            },
-            "pagina": pagina,
-            "tamanio": tamanio
-        })
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-# =========================
-# Exportación CSV / JSON
-# =========================
-@api_bp.route("/exportar", methods=["GET"])
-def exportar():
-    """
-    GET /api/exportar?formato=csv|json&secuencia_id=&nombre=&desde=&hasta=
-    """
-    try:
-        formato = (request.args.get("formato") or "csv").lower()
-        secuencia_id = request.args.get("secuencia_id")
-        nombre = (request.args.get("nombre") or "").strip()
-        desde = _parse_date_or_none(request.args.get("desde"))
-        hasta = _parse_date_or_none(request.args.get("hasta"))
-
-        if hasta and hasta.hour == 0 and hasta.minute == 0 and hasta.second == 0 and hasta.microsecond == 0:
-            hasta = hasta + timedelta(days=1) - timedelta(microseconds=1)
-
-        where = []
-        params = []
-        if secuencia_id:
-            where.append("s.id = %s")
-            params.append(int(secuencia_id))
-        if nombre:
-            where.append("s.nombre ILIKE %s")
-            params.append(f"%{nombre}%")
-        if desde:
-            where.append("s.fecha >= %s")
-            params.append(desde)
-        if hasta:
-            where.append("s.fecha <= %s")
-            params.append(hasta)
-        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-
-        sql = f"""
-            SELECT s.nombre AS nombre_secuencia,
-                   s.fecha,
-                   f.num_frame,
-                   f.landmarks
-            FROM secuencias s
-            JOIN frames f ON f.secuencia_id = s.id
-            {where_sql}
-            ORDER BY s.fecha DESC, f.num_frame ASC
-        """
-
-        with get_connection() as conn, conn.cursor() as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
-
-        registros = []
-        for r in rows:
-            if isinstance(r, (list, tuple)):
-                nombre_s, fecha, num_frame, landmarks = r
-            else:
-                nombre_s = r.get("nombre_secuencia")
-                fecha = r.get("fecha")
-                num_frame = r.get("num_frame")
-                landmarks = r.get("landmarks")
-            tipo, valor = _parse_normalized_nombre(nombre_s or "")
-            registros.append({
-                "nombre_secuencia": nombre_s,
-                "tipo": tipo,
-                "valor": valor,
-                "fecha": fecha.isoformat() if hasattr(fecha, "isoformat") else (str(fecha) if fecha else None),
-                "num_frame": int(num_frame or 0),
-                "landmarks": landmarks
-            })
-
-        if formato == "json":
-            return Response(
-                json.dumps(registros, ensure_ascii=False),
-                mimetype="application/json",
-                headers={"Content-Disposition": 'attachment; filename="export_lse.json"'}
-            )
-
-        # CSV por defecto: guardamos landmarks como JSON string
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["nombre_secuencia", "tipo", "valor", "fecha", "num_frame", "landmarks_json"])
-        for item in registros:
-            writer.writerow([
-                item["nombre_secuencia"],
-                item["tipo"],
-                item["valor"],
-                item["fecha"],
-                item["num_frame"],
-                json.dumps(item["landmarks"], ensure_ascii=False)
-            ])
-        csv_data = output.getvalue()
-
-        return Response(
-            csv_data,
-            mimetype="text/csv; charset=utf-8",
-            headers={"Content-Disposition": 'attachment; filename="export_lse.csv"'}
-        )
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

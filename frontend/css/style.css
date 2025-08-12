@@ -1,3 +1,9 @@
+/* =========================================================
+   Universidad de Guayaquil · Sistema LSE
+   Hoja de estilos principal (responsive y accesible)
+   ========================================================= */
+
+/* ---------- Variables ---------- */
 :root {
     --ug-blue: #0056b3;
     --ug-navy: #0f2a45;
@@ -8,7 +14,7 @@
     --ug-light: #f4f8fb;
     --radius: 16px;
     --shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
-    --transition: all 0.25s ease-in-out;
+    --transition: all .25s ease-in-out;
 
     /* Capturadora */
     --cap-bg-1: #0a0f1f;
@@ -18,7 +24,7 @@
     --cap-card: rgba(8, 14, 30, .45);
 }
 
-/* ---------- Base ---------- */
+/* ---------- Reset base ---------- */
 *,
 *::before,
 *::after {
@@ -36,28 +42,10 @@ body {
     animation: backgroundFlow 20s ease infinite;
     color: var(--ug-navy);
     margin: 0;
-    display: flex;
-    flex-direction: column;
     min-height: 100vh;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    html {
-        scroll-behavior: auto;
-    }
-
-    body {
-        animation: none !important;
-    }
-
-    .pulse,
-    .float-up,
-    .soft-appear {
-        animation: none !important;
-    }
 }
 
 @keyframes backgroundFlow {
@@ -75,16 +63,14 @@ body {
 }
 
 @keyframes pulse {
-    0% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
 
     50% {
-        transform: scale(1.07);
-    }
-
-    100% {
-        transform: scale(1);
+        transform: scale(1.06);
     }
 }
 
@@ -112,6 +98,23 @@ body {
     }
 }
 
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    body {
+        animation: none !important;
+    }
+
+    .pulse,
+    .float-up,
+    .soft-appear {
+        animation: none !important;
+    }
+}
+
 /* ---------- Header ---------- */
 .header-gradient {
     background: linear-gradient(120deg, var(--ug-blue), var(--ug-lightblue));
@@ -127,7 +130,7 @@ body {
     position: absolute;
     inset: auto -20% -35% -20%;
     height: 60%;
-    background: radial-gradient(55% 60% at 50% 0%, rgba(255, 255, 255, 0.15), transparent 70%);
+    background: radial-gradient(55% 60% at 50% 0%, rgba(255, 255, 255, .15), transparent 70%);
     pointer-events: none;
 }
 
@@ -135,9 +138,8 @@ body {
     max-height: 160px;
     display: block;
     margin: 0 auto 1rem;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
     transition: transform .2s ease, filter .2s ease;
-    will-change: transform;
 }
 
 .header-logo:hover {
@@ -148,7 +150,7 @@ body {
 .system-title {
     font-size: clamp(1.8rem, 3.2vw + 1rem, 2.7rem);
     font-weight: 800;
-    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+    text-shadow: 0 3px 6px rgba(0, 0, 0, .18);
     letter-spacing: .2px;
     margin-bottom: .25rem;
 }
@@ -163,7 +165,7 @@ body {
 .badge-lse {
     background-color: var(--ug-gold);
     color: #212529;
-    padding: 0.6rem 1.1rem;
+    padding: .6rem 1.1rem;
     font-weight: 700;
     border-radius: 999px;
     display: inline-block;
@@ -178,7 +180,7 @@ body {
     opacity: .95;
 }
 
-/* Botón cerrar sesión en esquina */
+/* Cerrar sesión */
 .position-top-end {
     position: absolute;
     top: 1rem;
@@ -199,7 +201,7 @@ body {
     transform: translateY(-1px);
 }
 
-/* Layout fix para móviles */
+/* Móvil header fix */
 @media (max-width: 768px) {
     .position-top-end {
         position: relative;
@@ -210,9 +212,13 @@ body {
         justify-content: center;
         width: 100%;
     }
+
+    .header-logo {
+        max-height: 130px;
+    }
 }
 
-/* ---------- Bloque Descripción ---------- */
+/* ---------- Descripción ---------- */
 .descripcion {
     background: #fff;
     color: #3e5064;
@@ -229,7 +235,7 @@ body {
     vertical-align: -2px;
 }
 
-/* ---------- Sección Opciones ---------- */
+/* ---------- Opciones ---------- */
 .seccion-opciones h3 {
     font-weight: 800;
     color: var(--ug-navy);
@@ -246,9 +252,8 @@ body {
     padding: .75rem 1.5rem;
     border-radius: 999px;
     transition: var(--transition);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
     backdrop-filter: blur(2px);
-    will-change: transform, box-shadow;
 }
 
 .btn-action i {
@@ -264,16 +269,135 @@ body {
     transform: translateY(-1px) scale(.98);
 }
 
-/* ---------- Video (previo general) ---------- */
+@media (max-width: 991.98px) {
+    .btn-action {
+        padding: .7rem 1.25rem;
+    }
+
+    .descripcion {
+        margin: 1.5rem 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .btn-action {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ---------- Capturadora ---------- */
+.capture-wrapper {
+    display: grid;
+    gap: .75rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, var(--cap-bg-1), var(--cap-bg-2));
+    box-shadow: 0 10px 30px var(--cap-glow);
+    border: 1px solid var(--cap-border);
+    animation: softAppear .3s ease-out both;
+}
+
+.capture-header .title {
+    letter-spacing: .2px;
+}
+
+.capture-header .badge .dot {
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: #2ecc71;
+    box-shadow: 0 0 0 .25rem rgba(46, 204, 113, .15);
+}
+
+.capture-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background:
+        radial-gradient(1200px 400px at 80% 0%, rgba(13, 110, 253, .12), transparent 60%),
+        radial-gradient(800px 300px at 20% 100%, rgba(83, 147, 255, .12), transparent 60%),
+        var(--cap-bg-1);
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--cap-border);
+}
+
 .video-viewer {
     border: 3px solid var(--ug-blue);
     border-radius: var(--radius);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
     background: #ffffff30;
     backdrop-filter: blur(3px);
     object-fit: cover;
 }
 
+#videoFrontend,
+#overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.capture-hud {
+    position: absolute;
+    z-index: 3;
+    color: #eaf2ff;
+    font-size: .85rem;
+    padding: .35rem .6rem;
+    border-radius: .6rem;
+    backdrop-filter: blur(6px);
+    background: var(--cap-card);
+    border: 1px solid rgba(255, 255, 255, .12);
+    animation: floatUp .35s ease both;
+}
+
+.capture-hud.top-left {
+    top: .5rem;
+    left: .5rem;
+}
+
+.capture-controls .btn {
+    border-radius: 1000px;
+    padding: .45rem .9rem;
+    backdrop-filter: saturate(120%) blur(6px);
+    transition: var(--transition);
+}
+
+.capture-controls .btn-outline-primary {
+    color: #dce8ff;
+    border-color: rgba(168, 203, 255, .4);
+}
+
+.capture-controls .btn-outline-primary:hover {
+    background: linear-gradient(180deg, rgba(13, 110, 253, .22), rgba(13, 110, 253, .35));
+}
+
+.capture-wrapper.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    padding: .75rem;
+    z-index: 9999;
+    border-radius: 0;
+    background: #000;
+}
+
+.capture-wrapper.is-fullscreen .capture-stage {
+    border-radius: .5rem;
+    aspect-ratio: auto;
+    height: 100%;
+}
+
+@supports(height:100dvh) {
+    .capture-wrapper.is-fullscreen {
+        height: 100dvh;
+    }
+}
+
+/* ---------- Estado ---------- */
 #estadoReconocimiento {
     font-size: clamp(1rem, 1.2vw + .6rem, 1.2rem);
     font-weight: 800;
@@ -281,7 +405,7 @@ body {
     animation: pulse 2s infinite ease-in-out;
 }
 
-/* ---------- Campo de Etiqueta ---------- */
+/* ---------- Formulario: etiqueta + categoría ---------- */
 .input-group {
     max-width: 640px;
     margin: 1.25rem auto 0;
@@ -323,7 +447,6 @@ body {
     outline-offset: 0;
 }
 
-/* Botón limpiar */
 #clearInputBtn {
     background: transparent;
     border: 0;
@@ -338,7 +461,41 @@ body {
     transform: scale(1.12);
 }
 
-/* ---------- Controles de Video ---------- */
+/* Combobox de categoría */
+label[for="categoriaSelect"] {
+    display: inline-flex;
+    gap: .5rem;
+    align-items: center;
+}
+
+#categoriaSelect.form-select {
+    max-width: 640px;
+    margin: 0 auto;
+    border-radius: 12px;
+    padding: .6rem .9rem;
+    border: 2px solid rgba(0, 86, 179, .08);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .04);
+    transition: var(--transition);
+}
+
+#categoriaSelect.form-select:hover {
+    border-color: rgba(0, 86, 179, .18);
+}
+
+#categoriaSelect.form-select:focus {
+    border-color: rgba(0, 86, 179, .35);
+    box-shadow: 0 0 0 .25rem rgba(0, 86, 179, .15);
+}
+
+#categoriaSelect:invalid {
+    border-color: #dc3545;
+}
+
+#categoriaSelect:invalid:focus {
+    box-shadow: 0 0 0 .25rem rgba(220, 53, 69, .2);
+}
+
+/* ---------- Controles de video abajo ---------- */
 .video-controls {
     display: flex;
     justify-content: center;
@@ -363,7 +520,7 @@ body {
     transform: translateY(-1px) scale(.99);
 }
 
-/* Dropdown de descarga */
+/* Dropdown descarga */
 .btn-group .dropdown-menu {
     border-radius: 14px;
     padding: .35rem;
@@ -380,9 +537,33 @@ body {
     background: #f1f6ff;
 }
 
+/* ---------- Modal Historial (iframe responsivo) ---------- */
+#modalHistorial .modal-dialog {
+    max-width: min(1200px, 96vw);
+}
+
+#modalHistorial .modal-body {
+    padding: 0;
+}
+
+#iframeHistorial {
+    width: 100%;
+    height: 70vh;
+    min-height: 420px;
+    border: 0;
+    display: block;
+}
+
+@media (max-width: 576px) {
+    #iframeHistorial {
+        height: 65vh;
+        min-height: 360px;
+    }
+}
+
 /* ---------- Footer ---------- */
 .shadow-top {
-    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.12) !important;
+    box-shadow: 0 -10px 24px rgba(0, 0, 0, .12) !important;
 }
 
 footer.bg-dark {
@@ -414,47 +595,28 @@ footer p {
     z-index: 1080;
 }
 
-/* ---------- Accesibilidad focus ---------- */
+/* Accesibilidad focus */
 a:focus-visible,
 button:focus-visible,
 [role="button"]:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
     outline: 3px solid rgba(0, 168, 232, .35);
     outline-offset: 2px;
     border-radius: 12px;
 }
 
-/* ---------- Breakpoints ---------- */
-/* Tablets y abajo */
+/* ---------- Breakpoints generales ---------- */
 @media (max-width: 991.98px) {
-    .header-logo {
-        max-height: 130px;
-        margin-bottom: .8rem;
-    }
-
-    .btn-action {
-        padding: .7rem 1.25rem;
-    }
-
-    .descripcion {
-        margin: 1.5rem 1rem;
-    }
-}
-
-/* Móviles */
-@media (max-width: 768px) {
     .system-title {
         letter-spacing: .1px;
     }
+}
 
+@media (max-width: 768px) {
     .descripcion {
         padding: 1.15rem;
         font-size: 1rem;
-    }
-
-    .btn-action {
-        width: 100%;
-        justify-content: center;
     }
 
     .input-group {
@@ -486,7 +648,6 @@ input:focus-visible {
     }
 }
 
-/* Teléfonos pequeños */
 @media (max-width: 420px) {
     .header-logo {
         max-height: 110px;
@@ -499,6 +660,10 @@ input:focus-visible {
 
     .btn-action {
         font-size: 1rem;
+    }
+
+    .capture-stage {
+        border-radius: .75rem;
     }
 }
 
@@ -530,7 +695,7 @@ input:focus-visible {
         background: rgba(255, 255, 255, .06);
     }
 
-    /* Forzar texto negro en el modal historial (contenido iframe puede variar) */
+    /* Forzar contraste para contenido del iframe (desacoplado del tema) */
     #modalHistorial,
     #modalHistorial * {
         color: #000 !important;
@@ -541,180 +706,4 @@ input:focus-visible {
     }
 }
 
-/* =========================================================
-   CAPTURADORA — Estilos completos, responsivos y animados
-   (usa IDs/clases: #captureWrapper, #captureStage, #videoFrontend, #overlay, #btnPantallaCompleta)
-   ========================================================= */
-
-.capture-wrapper {
-    display: grid;
-    gap: 0.75rem;
-    padding: 1rem;
-    border-radius: 1rem;
-    background: linear-gradient(180deg, var(--cap-bg-1), var(--cap-bg-2));
-    box-shadow: 0 10px 30px var(--cap-glow);
-    border: 1px solid var(--cap-border);
-    animation: softAppear .3s ease-out both;
-}
-
-.capture-header .title {
-    letter-spacing: .2px;
-}
-
-.capture-header .badge .dot {
-    display: inline-block;
-    width: .55rem;
-    height: .55rem;
-    border-radius: 50%;
-    background: #2ecc71;
-    box-shadow: 0 0 0 .25rem rgba(46, 204, 113, .15);
-}
-
-.capture-stage {
-    position: relative;
-    width: 100%;
-    /* Relación 16:9 adaptable; si el contenedor es estrecho, reduce suavemente */
-    aspect-ratio: 16/9;
-    background:
-        radial-gradient(1200px 400px at 80% 0%, rgba(13, 110, 253, .12), transparent 60%),
-        radial-gradient(800px 300px at 20% 100%, rgba(83, 147, 255, .12), transparent 60%),
-        var(--cap-bg-1);
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 1px solid var(--cap-border);
-}
-
-/* Video + canvas ocupan todo el stage */
-#videoFrontend,
-#overlay {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* HUD */
-.capture-hud {
-    position: absolute;
-    z-index: 3;
-    color: #eaf2ff;
-    font-size: .85rem;
-    padding: .35rem .6rem;
-    border-radius: .6rem;
-    backdrop-filter: blur(6px);
-    background: var(--cap-card);
-    border: 1px solid rgba(255, 255, 255, .12);
-    animation: floatUp .35s ease both;
-}
-
-.capture-hud.top-left {
-    top: .5rem;
-    left: .5rem;
-}
-
-/* Controles */
-.capture-controls .btn {
-    border-radius: 1000px;
-    padding: .45rem .9rem;
-    backdrop-filter: saturate(120%) blur(6px);
-}
-
-.capture-controls .btn-outline-primary {
-    color: #dce8ff;
-    border-color: rgba(168, 203, 255, .4);
-}
-
-.capture-controls .btn-outline-primary:hover {
-    background: linear-gradient(180deg, rgba(13, 110, 253, .22), rgba(13, 110, 253, .35));
-}
-
-/* Fullscreen */
-.capture-wrapper.is-fullscreen {
-    position: fixed;
-    inset: 0;
-    padding: 0.75rem;
-    z-index: 9999;
-    border-radius: 0;
-    background: #000;
-}
-
-.capture-wrapper.is-fullscreen .capture-stage {
-    border-radius: .5rem;
-}
-
-/* Safe areas (iPhone con notch) */
-@supports(padding:max(0px)) {
-    .capture-wrapper.is-fullscreen {
-        padding-bottom: max(.75rem, env(safe-area-inset-bottom));
-    }
-}
-
-/* Ajuste overlay a tamaño contenedor (fallback si JS no lo recalcula) */
-#overlay {
-    width: 100%;
-    height: 100%;
-}
-
-/* Badges del header (legibilidad) */
-#indicadorResolucion {
-    background: rgba(255, 255, 255, .9) !important;
-    color: #0a0f1f !important;
-    font-weight: 700;
-}
-
-#indicadorGrabando {
-    background: rgba(33, 208, 122, .18) !important;
-    border: 1px solid rgba(33, 208, 122, .35);
-}
-
-/* Microtransiciones generales */
-.capture-wrapper,
-.capture-stage,
-.capture-controls .btn {
-    transition: var(--transition);
-}
-
-/* ---------- Medias específicas capturadora ---------- */
-@media (max-width: 992px) {
-    .capture-wrapper {
-        padding: .85rem;
-    }
-
-    .capture-stage {
-        border-radius: .9rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .capture-header .title {
-        font-size: 1rem;
-    }
-
-    .capture-controls .btn {
-        padding: .5rem .8rem;
-        font-size: .9rem;
-    }
-}
-
-@media (max-width: 420px) {
-    .capture-stage {
-        border-radius: .75rem;
-    }
-}
-
-/* (opcional) Estilo del icono fullscreen activo/inactivo si cambias la clase via JS */
-.bi-fullscreen-exit {
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, .25));
-}
-
-.capture-wrapper.is-fullscreen .capture-stage {
-    aspect-ratio: auto;
-    height: 100%;
-}
-
-@supports(height:100dvh) {
-    .capture-wrapper.is-fullscreen {
-        height: 100dvh;
-    }
-}
+/* ====== Fin ====== */
