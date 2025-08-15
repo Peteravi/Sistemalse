@@ -17,7 +17,8 @@
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Historial de Secuencias</h5>
             <div class="d-flex gap-2">
-                <button id="btnRefrescar" class="btn btn-sm btn-outline-secondary" type="button" title="Refrescar">
+                <button id="btnRefrescar" class="btn btn-sm btn-outline-secondary" type="button" title="Refrescar"
+                    data-bs-toggle="tooltip">
                     <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
                 </button>
             </div>
@@ -31,7 +32,7 @@
                     <i class="bi bi-tags-fill me-1"></i> Etiqueta
                 </label>
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text" title="Buscar">
+                    <span class="input-group-text" title="Buscar" data-bs-toggle="tooltip">
                         <i class="bi bi-search"></i>
                     </span>
                     <input type="text" id="fNombre" class="form-control" placeholder="Buscar por nombre"
@@ -51,6 +52,7 @@
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-funnel"></i></span>
                     <select id="fCategoria" class="form-select form-select-sm" aria-label="Filtrar por categoría">
+                        <!-- Se pobla dinámicamente; fallback mínimo -->
                         <option value="">(Todas)</option>
                         <option value="letra">Letra</option>
                         <option value="numero">Número</option>
@@ -62,8 +64,24 @@
                 </div>
             </div>
 
+            <!-- Subcategoría -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label for="fSubcat" class="form-label mb-1">
+                    <i class="bi bi-collection me-1"></i> Subcategoría
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+                    <input type="text" id="fSubcat" class="form-control form-control-sm"
+                        placeholder="Ej.: A, 0, hola..." aria-label="Subcategoría">
+                    <button class="btn btn-outline-secondary" type="button" id="btnClearSubcat"
+                        title="Limpiar subcategoría" data-bs-toggle="tooltip">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Desde -->
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-1">
                 <label for="fDesde" class="form-label mb-1">
                     <i class="bi bi-calendar-event me-1"></i> Desde
                 </label>
@@ -78,7 +96,7 @@
             </div>
 
             <!-- Hasta -->
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-1">
                 <label for="fHasta" class="form-label mb-1">
                     <i class="bi bi-calendar2-event me-1"></i> Hasta
                 </label>
@@ -120,15 +138,11 @@
             <table class="table table-hover align-middle mb-2">
                 <thead class="table-light">
                     <tr>
-                        <th style="min-width:180px;">
-                            <i class="bi bi-clock-history me-1"></i> Fecha
-                        </th>
+                        <th style="min-width:180px;"><i class="bi bi-clock-history me-1"></i> Fecha</th>
                         <th><i class="bi bi-tag me-1"></i> Etiqueta</th>
                         <th><i class="bi bi-person-badge me-1"></i> Usuario</th>
                         <th><i class="bi bi-collection me-1"></i> Frames</th>
-                        <th style="width:140px;">
-                            <i class="bi bi-eye me-1"></i> Acciones
-                        </th>
+                        <th style="width:180px;"><i class="bi bi-eye me-1"></i> Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="historialBody">
@@ -145,8 +159,10 @@
         <div class="d-flex justify-content-between align-items-center">
             <small id="histInfo" class="text-muted"></small>
             <div class="btn-group">
-                <button id="prevPage" class="btn btn-outline-secondary btn-sm" title="Página Anterior">«</button>
-                <button id="nextPage" class="btn btn-outline-secondary btn-sm" title="Página Siguiente">»</button>
+                <button id="prevPage" class="btn btn-outline-secondary btn-sm" title="Página Anterior"
+                    data-bs-toggle="tooltip">«</button>
+                <button id="nextPage" class="btn btn-outline-secondary btn-sm" title="Página Siguiente"
+                    data-bs-toggle="tooltip">»</button>
             </div>
         </div>
     </div>
@@ -184,6 +200,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Editar Secuencia -->
+    <div class="modal fade" id="modalEditarSecuencia" tabindex="-1" aria-labelledby="modalEditarSecuenciaLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modalEditarSecuenciaLabel"><i
+                            class="bi bi-pencil-square me-2"></i>Editar secuencia</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editSecuenciaId">
+                    <div class="mb-2">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" id="editNombre" class="form-control" placeholder="Ej.: saludo_hola">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Categoría</label>
+                        <select id="editCategoria" class="form-select">
+                            <option value="">(Sin categoría)</option>
+                        </select>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Subcategoría</label>
+                        <input type="text" id="editSubcategoria" class="form-control"
+                            placeholder="Ej.: A, B, feliz, 0, 1">
+                        <div class="form-text">Opcional; deja vacío para limpiar.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnGuardarEdicion" type="button" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

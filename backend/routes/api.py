@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from bd.conexion import get_connection
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import json, re
 from typing import Any, Tuple, Optional
 
@@ -10,15 +11,14 @@ api_bp = Blueprint("api_bp", __name__)
 # Utilidades
 # =========================
 def _parse_date_or_none(s: str | None):
-    """Acepta 'YYYY-MM-DD' o ISO completo. Devuelve datetime o None."""
+    """Acepta 'YYYY-MM-DD' o ISO completo. Devuelve datetime o None (naive/aware)."""
     if not s:
         return None
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except Exception:
         try:
-            from datetime import datetime as _dt
-            return _dt.strptime(s, "%Y-%m-%d")
+            return datetime.strptime(s, "%Y-%m-%d")
         except Exception:
             return None
 
@@ -44,6 +44,22 @@ def _row_field(row: Any, idx_or_key):
             return row.get(idx_or_key)
         raise KeyError(f"Clave requerida para fila tipo {type(row)}")
     return None
+
+def _iso_utc_z(dt):
+    """
+    Devuelve ISO-8601 en UTC con sufijo 'Z'.
+    - Si dt viene naive, lo interpretamos como UTC (compatibilidad con datos antiguos).
+    """
+    if not dt:
+        return None
+    try:
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+    except Exception:
+        return str(dt)
 
 # -------------------------
 # Normalización de nombres
@@ -173,7 +189,6 @@ def _categoria_id_por_slug(cur, slug: str | None) -> int | None:
 # =========================
 @api_bp.route("/crear_secuencia", methods=["POST"])
 def crear_secuencia():
-    from traceback import format_exc
     try:
         data = request.get_json(silent=True) or {}
 
@@ -184,7 +199,17 @@ def crear_secuencia():
         categoria_slug = (data.get("categoria_slug") or "").strip().lower() or None
         subcategoria   = (data.get("subcategoria") or "").strip() or None
         usuario_id     = data.get("usuario_id")  # opcional
-        fecha          = _parse_date_or_none(data.get("fecha")) or datetime.utcnow()
+
+        # === Fecha: normalizar a UTC-aware ===
+        fecha = _parse_date_or_none(data.get("fecha"))
+        if fecha is None:
+            # Sin fecha -> ahora en UTC (aware)
+            fecha = datetime.now(timezone.utc)
+        else:
+            # Si vino naive, asumir hora local de Guayaquil para convertir a UTC
+            if fecha.tzinfo is None:
+                fecha = fecha.replace(tzinfo=ZoneInfo("America/Guayaquil"))
+            fecha = fecha.astimezone(timezone.utc)
 
         if not nombre_in and not valor_in:
             return jsonify({"ok": False, "error": "Se requiere 'nombre' o ('tipo' y 'valor')"}), 400
@@ -201,7 +226,6 @@ def crear_secuencia():
             except Exception:
                 categoria_slug = None
 
-            # Resolver categoria_id
             categoria_id = None
             if categoria_slug:
                 try:
@@ -211,7 +235,7 @@ def crear_secuencia():
                 except Exception:
                     categoria_id = None
 
-            # Insert principal (con categoría)
+            # Insert principal (con categoría + fecha aware)
             try:
                 cur.execute("""
                     INSERT INTO secuencias (nombre, fecha, usuario_id, categoria_id, subcategoria)
@@ -219,32 +243,31 @@ def crear_secuencia():
                     RETURNING id, fecha, categoria_id, subcategoria
                 """, (nombre_norm, fecha, usuario_id, categoria_id, subcategoria))
                 row = cur.fetchone()
-                secuencia_id    = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
-                fecha_db        = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
-                categoria_id_db = _row_field(row, 2) if isinstance(row, (list, tuple)) else _row_field(row, "categoria_id")
-                subcategoria_db = _row_field(row, 3) if isinstance(row, (list, tuple)) else _row_field(row, "subcategoria")
-
+                secuencia_id    = _row_field(row, 0)
+                fecha_db        = _row_field(row, 1)
+                categoria_id_db = _row_field(row, 2)
+                subcategoria_db = _row_field(row, 3)
             except Exception:
-                # Fallback para esquema viejo (sin columnas de categoría)
+                # Fallback esquema viejo (sin columnas de categoría)
                 cur.execute("""
                     INSERT INTO secuencias (nombre, fecha, usuario_id)
                     VALUES (%s, %s, %s)
                     RETURNING id, fecha
                 """, (nombre_norm, fecha, usuario_id))
                 row = cur.fetchone()
-                secuencia_id    = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
-                fecha_db        = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
+                secuencia_id    = _row_field(row, 0)
+                fecha_db        = _row_field(row, 1)
                 categoria_id_db = None
                 subcategoria_db = None
 
-            # Enriquecer categoría (opcional)
+            # Enriquecer categoría
             cat_slug_resp = cat_nombre_resp = None
             if categoria_id_db:
                 try:
                     cur.execute("SELECT slug, nombre FROM categorias WHERE id=%s", (categoria_id_db,))
                     r = cur.fetchone()
-                    cat_slug_resp   = _row_field(r, 0) if isinstance(r, (list, tuple)) else _row_field(r, "slug")
-                    cat_nombre_resp = _row_field(r, 1) if isinstance(r, (list, tuple)) else _row_field(r, "nombre")
+                    cat_slug_resp   = _row_field(r, 0)
+                    cat_nombre_resp = _row_field(r, 1)
                 except Exception:
                     pass
 
@@ -261,12 +284,11 @@ def crear_secuencia():
                     "nombre": cat_nombre_resp,
                     "subcategoria": subcategoria_db
                 },
-                "fecha": (fecha_db.isoformat() if hasattr(fecha_db, "isoformat") else str(fecha_db))
+                "fecha": _iso_utc_z(fecha_db)
             })
 
     except Exception as e:
-        from traceback import format_exc
-        return jsonify({"ok": False, "error": str(e), "trace": format_exc()}), 500
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # =========================
 # POST /api/guardar_frame

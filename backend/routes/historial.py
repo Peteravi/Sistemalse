@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify, Response
 from bd.conexion import get_connection
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import csv, io, json, re
-from typing import Any, Tuple, Optional
+from typing import Any
 
 historial_bp = Blueprint("historial_bp", __name__)
 
@@ -36,7 +36,7 @@ def _row_field(row: Any, idx_or_key):
     """Obtiene un campo de una fila (tupla/dict) por índice o clave."""
     if isinstance(row, (list, tuple)):
         if isinstance(idx_or_key, int):
-            return row[ idx_or_key ]
+            return row[idx_or_key]
         raise KeyError(f"Índice requerido para fila tipo {type(row)}")
     if isinstance(row, dict):
         if isinstance(idx_or_key, str):
@@ -44,10 +44,26 @@ def _row_field(row: Any, idx_or_key):
         raise KeyError(f"Clave requerida para fila tipo {type(row)}")
     return None
 
+def _iso_utc_z(dt):
+    """
+    Devuelve ISO-8601 en UTC con sufijo 'Z'.
+    - Si dt viene naive, lo interpretamos como UTC (caso histórico).
+    """
+    if not dt:
+        return None
+    try:
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+    except Exception:
+        return str(dt)
+
 # -------------------------
-# Normalización de nombres (para exponer tipo/valor)
+# Normalización de nombres (para exponer tipo/valor en listado/detalle)
 # -------------------------
-def _parse_normalized_nombre(nombre_norm: str) -> Tuple[str, str]:
+def _parse_normalized_nombre(nombre_norm: str):
     """Extrae (tipo, valor) desde el nombre normalizado."""
     if not nombre_norm:
         return ("texto", "")
@@ -97,7 +113,7 @@ def historial_listado():
         joins = [
             "LEFT JOIN usuarios u ON u.id = s.usuario_id",
             "LEFT JOIN frames   f ON f.secuencia_id = s.id",
-            "LEFT JOIN categorias c ON c.id = s.categoria_id"  # SIEMPRE unimos categorías
+            "LEFT JOIN categorias c ON c.id = s.categoria_id"
         ]
 
         where = []
@@ -189,7 +205,7 @@ def historial_listado():
                 "nombre": nom,
                 "tipo": tipo,
                 "valor": valor,
-                "fecha": fec.isoformat() if hasattr(fec, "isoformat") else (str(fec) if fec else None),
+                "fecha": _iso_utc_z(fec),
                 "usuario_id": uid,
                 "usuario": unom,
                 "frames": int(frs or 0),
@@ -256,7 +272,7 @@ def historial_detalle(secuencia_id: int):
             lmk  = _row_field(r, 2) if isinstance(r, (list, tuple)) else _row_field(r, "landmarks")
             frames.append({"id": f_id, "frame": nf, "num_frame": nf, "landmarks": lmk})
 
-        fecha_iso = s_fec.isoformat() if hasattr(s_fec, "isoformat") else (str(s_fec) if s_fec else None)
+        fecha_iso = _iso_utc_z(s_fec)
         tipo, valor = _parse_normalized_nombre(s_nom or "")
 
         return jsonify({
@@ -358,7 +374,7 @@ def exportar():
                 "nombre_secuencia": nombre_s,
                 "tipo": tipo,
                 "valor": valor,
-                "fecha": fecha.isoformat() if hasattr(fecha, "isoformat") else (str(fecha) if fecha else None),
+                "fecha": _iso_utc_z(fecha),
                 "num_frame": int(num_frame or 0),
                 "landmarks": landmarks,
                 "categoria_slug": cat_slug,
@@ -394,5 +410,117 @@ def exportar():
             mimetype="text/csv; charset=utf-8",
             headers={"Content-Disposition": 'attachment; filename="export_lse.csv"'}
         )
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# =========================
+# NUEVO: GET /api/categorias
+# =========================
+@historial_bp.route("/categorias", methods=["GET"])
+def listar_categorias():
+    """Devuelve: [{id, slug, nombre, parent_id}]"""
+    try:
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, slug, nombre, parent_id
+                FROM categorias
+                ORDER BY nombre ASC
+            """)
+            rows = cur.fetchall()
+
+        out = []
+        for r in rows:
+            if isinstance(r, (list, tuple)):
+                rid, slug, nombre, parent_id = r
+            else:
+                rid, slug, nombre, parent_id = r["id"], r["slug"], r["nombre"], r["parent_id"]
+            out.append({"id": rid, "slug": slug, "nombre": nombre, "parent_id": parent_id})
+        return jsonify({"ok": True, "categorias": out})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# =========================
+# NUEVO: PATCH/PUT /api/secuencias/<id>
+# =========================
+@historial_bp.route("/secuencias/<int:secuencia_id>", methods=["PATCH", "PUT"])
+def actualizar_secuencia(secuencia_id: int):
+    """
+    Body JSON: { "nombre"?: str, "categoria_slug"?: str, "subcategoria"?: str }
+    - Si se incluye "subcategoria": se puede vaciar con ""
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        nombre = (data.get("nombre") or "").strip()
+        categoria_slug = (data.get("categoria_slug") or "").strip().lower()
+        subcategoria = data.get("subcategoria")
+        if subcategoria is not None:
+            subcategoria = subcategoria.strip()
+
+        if not any([nombre, categoria_slug, subcategoria is not None]):
+            return jsonify({"ok": False, "error": "nada_para_actualizar"}), 400
+
+        with get_connection() as conn, conn.cursor() as cur:
+            categoria_id = None
+            if categoria_slug:
+                cur.execute("SELECT id FROM categorias WHERE slug=%s", (categoria_slug,))
+                r = cur.fetchone()
+                if not r:
+                    return jsonify({"ok": False, "error": "categoria_no_valida"}), 400
+                categoria_id = _row_field(r, 0) if isinstance(r, (list, tuple)) else _row_field(r, "id")
+
+            sets, params = [], []
+            if nombre:
+                sets.append("nombre = %s")
+                params.append(nombre)
+            if categoria_slug:
+                sets.append("categoria_id = %s")
+                params.append(categoria_id)
+            if subcategoria is not None:
+                sets.append("subcategoria = %s")
+                params.append(subcategoria)
+
+            if not sets:
+                return jsonify({"ok": False, "error": "nada_para_actualizar"}), 400
+
+            params.append(secuencia_id)
+            sql = f"""
+                UPDATE secuencias
+                   SET {", ".join(sets)}
+                 WHERE id = %s
+             RETURNING id, nombre, fecha, categoria_id, subcategoria
+            """
+            cur.execute(sql, tuple(params))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": False, "error": "secuencia_no_encontrada"}), 404
+
+            # Enriquecer categoría
+            cat_slug = cat_nombre = None
+            cat_id = _row_field(row, 3) if isinstance(row, (list, tuple)) else _row_field(row, "categoria_id")
+            if cat_id:
+                cur.execute("SELECT slug, nombre FROM categorias WHERE id=%s", (cat_id,))
+                cat = cur.fetchone()
+                if cat:
+                    cat_slug = _row_field(cat, 0) if isinstance(cat, (list, tuple)) else _row_field(cat, "slug")
+                    cat_nombre = _row_field(cat, 1) if isinstance(cat, (list, tuple)) else _row_field(cat, "nombre")
+
+            conn.commit()
+
+        rid = _row_field(row, 0) if isinstance(row, (list, tuple)) else _row_field(row, "id")
+        rnom = _row_field(row, 1) if isinstance(row, (list, tuple)) else _row_field(row, "nombre")
+        rfec = _row_field(row, 2) if isinstance(row, (list, tuple)) else _row_field(row, "fecha")
+        rsub = _row_field(row, 4) if isinstance(row, (list, tuple)) else _row_field(row, "subcategoria")
+
+        return jsonify({
+            "ok": True,
+            "secuencia": {
+                "id": rid,
+                "nombre": rnom,
+                "fecha": _iso_utc_z(rfec),
+                "categoria": {"slug": cat_slug, "nombre": cat_nombre, "subcategoria": rsub}
+            }
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

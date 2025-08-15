@@ -211,9 +211,6 @@ export function exportarUrl({
     return `${BACKEND_URL}/api/exportar?${q.toString()}`;
 }
 
-/**
- * Logout (si usas sesión/cookie en el backend).
- */
 export function logout() {
     return fetch(`${BACKEND_URL}/logout`, { credentials: "include" });
 }
