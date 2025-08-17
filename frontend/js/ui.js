@@ -1,6 +1,3 @@
-// js/ui.js — completo y alineado con api.js y utils.js
-// Requiere que en el HTML estén cargados @mediapipe/hands y @mediapipe/drawing_utils
-
 import { crearSecuencia, guardarFrame, exportarUrl, logout } from "./api.js";
 import { mostrarAlertaBootstrap, showToast, inferirTipoValor, setEstado } from "./utils.js";
 
@@ -27,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const indicadorResolucion = $("indicadorResolucion");
     const indicadorGrabando = $("indicadorGrabando");
     const iframeHistorial = $("iframeHistorial");
+    const iframeMetricas = $("iframeMetricas");
 
     // Inyectar botón "Cambiar cámara" si no existe
     let btnCam = $("btnCambiarCamara");
@@ -652,11 +650,13 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             await logout();
             showToast?.("Sesión cerrada.", "info");
-            location.reload();
+            window.location.href = "login.html";
         } catch {
             showToast?.("No se pudo cerrar sesión.", "danger");
         }
     });
+
+
 
     // ------- Exponer funciones del header -------
     window.capturarSecuencia = async () => {
@@ -666,13 +666,23 @@ document.addEventListener("DOMContentLoaded", () => {
             mostrarAlertaBootstrap("📸 Permiso de cámara concedido. Vista previa activa.", "success");
             ensureCaptureVisible();
         } catch (e) {
-            // errores ya notificados en Cam.start
+
         }
     };
 
-    window.subirVideo = function () {
-        mostrarAlertaBootstrap("📁 Módulo de subida en construcción.", "secondary", 3000);
+    window.verMetricas = function () {
+        try {
+            const url = "metricas.html"; 
+            const iframe = document.getElementById("iframeMetricas");
+            if (iframe) iframe.src = url;        
+            const modal = new bootstrap.Modal(document.getElementById("modalMetricas"));
+            modal.show();
+        } catch (e) {
+            console.error(e);
+            window.open("metricas.html", "_blank");
+        }
     };
+
 
     window.verHistorial = function () {
         try {

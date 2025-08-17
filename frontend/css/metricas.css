@@ -1,0 +1,238 @@
+:root {
+    --bg: #f8f9fa;
+    /* Fondo claro */
+    --card: #ffffff;
+    /* Fondo tarjetas */
+    --txt: #212529;
+    /* Texto principal */
+    --txt-muted: #6c757d;
+    /* Texto atenuado */
+    --stroke: rgba(0, 0, 0, .08);
+    /* Bordes sutiles */
+    --focus: rgba(13, 110, 253, .25);
+    --primary: #0d6efd;
+    /* Azul Bootstrap */
+    --shadow: 0 4px 12px rgba(0, 0, 0, .08);
+
+    /* Alturas adaptativas para charts */
+    --chart-h-lg: 42vh;
+    --chart-h-md: 36vh;
+    --chart-h-sm: 28vh;
+}
+
+/* ---------- Base ---------- */
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--txt);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+small,
+span,
+label {
+    color: var(--txt);
+}
+
+/* ---------- Tarjetas ---------- */
+.card {
+    background: var(--card);
+    border: 1px solid var(--stroke);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+/* KPIs */
+.stat {
+    font-weight: 700;
+    font-size: clamp(1.15rem, 1.1rem + 1vw, 1.8rem);
+    line-height: 1.1;
+}
+
+/* Texto atenuado */
+.muted,
+.text-muted {
+    color: var(--txt-muted) !important;
+}
+
+/* ---------- Controles / Filtros ---------- */
+.filter-row .form-control,
+.filter-row .form-select {
+    /* Fallback sin color-mix para compatibilidad amplia */
+    background: #fff;
+    color: var(--txt);
+    border-color: #dfe3e8;
+}
+
+.filter-row .form-control:focus,
+.filter-row .form-select:focus,
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 .2rem var(--focus);
+}
+
+/* Panel auto-actualizar */
+#autoRefreshSec {
+    max-width: 140px;
+}
+
+@media (max-width: 575.98px) {
+    .filter-row .btn {
+        width: 100%;
+    }
+}
+
+/* ---------- Canvases / Charts ---------- */
+/* Ignora el atributo height del HTML para ser realmente responsive */
+canvas[id^="chart"] {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 220px;
+    border-radius: 12px;
+    display: block;
+}
+
+@media (min-width: 1200px) {
+    canvas[id^="chart"] {
+        min-height: var(--chart-h-lg);
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1199.98px) {
+    canvas[id^="chart"] {
+        min-height: var(--chart-h-md);
+    }
+}
+
+@media (max-width: 767.98px) {
+    canvas[id^="chart"] {
+        min-height: var(--chart-h-sm);
+    }
+}
+
+/* ---------- Listas ---------- */
+#listaCategorias {
+    list-style: none;
+    padding-left: 0;
+}
+
+#listaCategorias li {
+    padding: .5rem .25rem;
+    border-bottom: 1px dashed var(--stroke);
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+}
+
+#listaCategorias li:last-child {
+    border-bottom: 0;
+}
+
+#listaCategorias small {
+    color: var(--txt-muted);
+}
+
+/* ---------- Layouts ---------- */
+.container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+.metrics-header h1 i {
+    vertical-align: -1px;
+}
+
+.row.g-3>[class*="col-"] {
+    min-width: 0;
+}
+
+/* evita overflow en grids */
+
+/* ---------- Accesibilidad ---------- */
+:focus-visible {
+    outline: 2px dashed var(--primary);
+    outline-offset: 2px;
+}
+
+/* Botón “Volver” (usabas btn-outline-light; en tema claro lo adaptamos) */
+.btn-outline-light {
+    --bs-btn-color: #495057;
+    --bs-btn-border-color: #cfd4da;
+    --bs-btn-hover-bg: #e9ecef;
+    --bs-btn-hover-color: #212529;
+    --bs-btn-hover-border-color: #adb5bd;
+}
+
+/* ---------- Utilidades ---------- */
+.shadow-soft {
+    box-shadow: var(--shadow);
+}
+
+.rounded-2xl {
+    border-radius: 18px;
+}
+
+.clamp-line {
+    line-height: 1.3;
+}
+
+/* ---------- Modales (si abres dentro de iframe) ---------- */
+.modal .modal-content {
+    background: var(--card);
+    color: var(--txt);
+    border: 1px solid var(--stroke);
+}
+
+/* ---------- Scrollbar sutil ---------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cfd4da transparent;
+}
+
+*::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #cfd4da;
+    border-radius: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ---------- Impresión ---------- */
+@media print {
+    body {
+        background: #fff;
+        color: #000;
+    }
+
+    .card {
+        box-shadow: none;
+        border-color: #ddd;
+    }
+
+    canvas[id^="chart"] {
+        min-height: 280px !important;
+    }
+
+    .btn,
+    .filter-row {
+        display: none !important;
+    }
+}

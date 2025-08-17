@@ -34,16 +34,30 @@ def _get_one_value(row: Any, default=0):
     return default
 
 def _row_field(row: Any, idx_or_key):
-    """Obtiene un campo de una fila (tupla/dict) por índice o clave."""
+    """Obtiene un campo de una fila (tupla/dict) por índice o clave.
+       Soporta:
+         - tuplas/listas con índice int
+         - dict con clave str
+         - dict con índice int (usa el orden de columnas devuelto por el cursor)
+    """
+    if row is None:
+        raise KeyError("Fila vacía")
+    # Tupla/lista -> índice
     if isinstance(row, (list, tuple)):
         if isinstance(idx_or_key, int):
             return row[idx_or_key]
         raise KeyError(f"Índice requerido para fila tipo {type(row)}")
+    # Dict -> clave o índice por posición
     if isinstance(row, dict):
         if isinstance(idx_or_key, str):
             return row.get(idx_or_key)
-        raise KeyError(f"Clave requerida para fila tipo {type(row)}")
-    return None
+        if isinstance(idx_or_key, int):
+            vals = list(row.values())
+            if 0 <= idx_or_key < len(vals):
+                return vals[idx_or_key]
+            raise KeyError(f"Índice fuera de rango para fila dict (len={len(vals)})")
+        raise KeyError(f"Clave o índice requerido para fila tipo {type(row)}")
+    raise KeyError(f"Tipo de fila no soportado: {type(row)}")
 
 def _iso_utc_z(dt):
     """

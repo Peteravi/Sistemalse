@@ -28,7 +28,7 @@ app.config.update(
 # ✅ Middleware para Cloud Run (HTTPS detrás de proxy)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# 🌐 Orígenes permitidos (puedes definir FRONTEND_ORIGINS="https://tu.web.app,https://otro.com")
+# 🌐 Orígenes permitidos 
 def _get_allowed_origins():
     raw = os.environ.get("FRONTEND_ORIGINS") or os.environ.get("FRONTEND_ORIGIN", "")
     defaults = [
@@ -44,7 +44,7 @@ def _get_allowed_origins():
 
 ALLOWED_ORIGINS = _get_allowed_origins()
 
-# 🌐 CORS: incluye /api/* y rutas de sesión/login
+# 🌐 CORS
 CORS(
     app,
     resources={
