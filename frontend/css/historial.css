@@ -1,5 +1,11 @@
+/* =========================================================
+   Historial de Secuencias — Estilos PRO y Responsivos
+   Archivo: historial.css (reemplaza por completo)
+   ========================================================= */
+
+/* ------------------ Design Tokens (Light) ------------------ */
 :root {
-    /* Marca */
+    /* Marca (Azules UG) */
     --brand-start: #0772c4;
     --brand-mid: #1b84d6;
     --brand-end: #2d96e8;
@@ -25,14 +31,31 @@
     --ring: 0 0 0 0.25rem rgba(7, 114, 196, 0.20);
     --trans: all .2s ease;
 
-    /* Anchuras útiles */
+    /* Anchos útiles */
     --min-col: 220px;
     /* ancho mínimo de bloque de filtro */
     --table-pad: 14px;
     /* padding base de celdas */
 }
 
-/* ========= Base ========= */
+/* ------------------ Design Tokens (Dark auto) ------------------ */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-page: #0b1020;
+        --bg-container: #0f172a;
+        --bg-soft: #0b1325;
+
+        --text-1: #e5e7eb;
+        --text-2: #9aa3b2;
+
+        --border-1: #1e293b;
+        --shadow: 0 10px 28px rgba(2, 6, 23, .6);
+
+        --ring: 0 0 0 0.25rem rgba(45, 150, 232, .25);
+    }
+}
+
+/* ------------------ Base ------------------ */
 * {
     box-sizing: border-box;
 }
@@ -54,6 +77,7 @@ body {
 :focus-visible {
     outline: none;
     box-shadow: var(--ring);
+    border-radius: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -64,7 +88,7 @@ body {
     }
 }
 
-/* ========= Contenedor principal ========= */
+/* ------------------ Contenedor principal ------------------ */
 .container {
     background: var(--bg-container);
     border: 1px solid var(--border-1);
@@ -76,9 +100,9 @@ body {
     max-width: 1200px;
 }
 
-/* ========= Título / badges ========= */
+/* ------------------ Header / acciones ------------------ */
 h5 {
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: .1px;
     color: var(--text-1);
     font-size: clamp(1.05rem, 1vw + .9rem, 1.25rem);
@@ -94,7 +118,7 @@ h5 {
     border-radius: 999px;
 }
 
-/* ========= Botones ========= */
+/* ------------------ Botones ------------------ */
 .btn-ripple {
     position: relative;
     overflow: hidden;
@@ -123,7 +147,7 @@ h5 {
     background: var(--brand-grad);
     border: none;
     color: #fff;
-    font-weight: 600;
+    font-weight: 700;
     border-radius: var(--radius-lg);
     box-shadow: 0 4px 12px rgba(7, 114, 196, .20);
     transition: var(--trans);
@@ -156,7 +180,7 @@ h5 {
     box-shadow: var(--ring);
 }
 
-/* Botón "Ver" pequeño */
+/* Botón "Ver" pequeño dentro de tabla */
 .table .btn-outline-info.btn-sm {
     --c: var(--brand-mid);
     color: var(--c);
@@ -178,8 +202,23 @@ h5 {
     box-shadow: var(--ring);
 }
 
-/* ========= Filtros ========= */
-/* Forzamos que los bloques de filtro se comporten como "cards" fluidas */
+/* Botón refrescar del header */
+#btnRefrescar {
+    border-radius: 999px;
+    padding: .35rem .8rem;
+    background: #f1f8ff;
+    border: 1px solid var(--border-1);
+    color: var(--brand-start);
+    transition: var(--trans);
+}
+
+#btnRefrescar:hover {
+    box-shadow: var(--ring);
+    border-color: var(--brand-mid);
+    background: #e7f3ff;
+}
+
+/* ------------------ Filtros ------------------ */
 #formFiltros {
     display: flex;
     flex-wrap: wrap;
@@ -192,7 +231,7 @@ h5 {
     max-width: 100%;
 }
 
-/* Tamaño (select) y botón "Filtrar" no deben crecer demasiado */
+/* “Tamaño” y botón “Filtrar” con ancho controlado */
 #formFiltros .col-6.col-md-1,
 #formFiltros .d-grid {
     flex: 0 0 clamp(120px, 18vw, 160px);
@@ -201,16 +240,16 @@ h5 {
 /* Labels */
 #formFiltros .form-label {
     color: var(--text-2);
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 4px;
     font-size: .875rem;
 }
 
-/* Inputs y selects */
+/* Inputs y selects (base en claro) */
 #formFiltros .form-control,
 #formFiltros .form-select {
     background: #fff;
-    color: var(--text-1);
+    color: #212529;
     border: 1px solid var(--border-1);
     border-radius: var(--radius-lg);
     font-size: .925rem;
@@ -227,7 +266,7 @@ h5 {
     box-shadow: var(--ring);
 }
 
-/* Input group con icono */
+/* Input-group con icono */
 .input-group .input-group-text {
     background: #fff;
     color: var(--brand-mid);
@@ -257,7 +296,68 @@ h5 {
     background: var(--brand-mid);
 }
 
-/* ========= Tabla ========= */
+/* ---- Filtros: Modo oscuro (visibilidad garantizada) ---- */
+@media (prefers-color-scheme: dark) {
+
+    #formFiltros .form-control,
+    #formFiltros .form-select {
+        background: #0b152c;
+        /* fondo oscuro */
+        color: #e5e7eb;
+        /* texto claro */
+        border-color: #334155;
+        /* borde visible */
+    }
+
+    #formFiltros .form-control::placeholder {
+        color: #9aa3b2;
+        opacity: .95;
+    }
+
+    .input-group .input-group-text {
+        background: #0b152c;
+        color: #9ec5fe;
+        border-color: #334155;
+    }
+
+    .input-group .btn {
+        background: #0b152c;
+        color: #9ec5fe;
+        border-color: #334155;
+    }
+
+    .input-group .btn:hover {
+        background: #1e293b;
+        color: #fff;
+        border-color: #3b82f6;
+    }
+
+    /* Select: opciones legibles */
+    #formFiltros .form-select option {
+        color: #e5e7eb;
+        background: #0b152c;
+    }
+
+    /* Date picker nativo */
+    input[type="date"].form-control {
+        color-scheme: dark;
+    }
+
+    input[type="date"].form-control::-webkit-calendar-picker-indicator {
+        filter: invert(1) opacity(.9);
+    }
+
+    /* Autofill (Chrome) */
+    input.form-control:-webkit-autofill,
+    input.form-control:-webkit-autofill:focus {
+        -webkit-text-fill-color: #e5e7eb;
+        -webkit-box-shadow: 0 0 0 1000px #0b152c inset;
+        box-shadow: 0 0 0 1000px #0b152c inset;
+        transition: background-color 9999s ease-in-out 0s;
+    }
+}
+
+/* ------------------ Tabla ------------------ */
 .table {
     margin-bottom: 0;
     border-collapse: separate;
@@ -272,13 +372,21 @@ h5 {
 .table thead th {
     background: #f7fbff;
     color: var(--brand-start);
-    font-weight: 600;
+    font-weight: 700;
     border-bottom: 1px solid var(--border-1) !important;
     position: sticky;
     top: 0;
     z-index: 5;
-    font-size: .875rem;
+    font-size: .9rem;
     padding: 12px 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .table thead th {
+        background: #0b152c;
+        color: #b4d9ff;
+        border-color: #163152 !important;
+    }
 }
 
 .table tbody tr {
@@ -289,6 +397,14 @@ h5 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, .02);
     transition: var(--trans);
     animation: rowIn .3s ease both;
+}
+
+@media (prefers-color-scheme: dark) {
+    .table tbody tr {
+        background: #0f172a;
+        border-color: #1e293b;
+        box-shadow: 0 6px 16px rgba(2, 6, 23, .5);
+    }
 }
 
 .table tbody tr td {
@@ -303,6 +419,15 @@ h5 {
     border-color: #cbe6ff;
 }
 
+/* Truncado elegante para textos largos */
+.truncate {
+    max-width: 420px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Animación de entrada de filas */
 @keyframes rowIn {
     from {
         opacity: 0;
@@ -315,7 +440,7 @@ h5 {
     }
 }
 
-/* ========= Skeleton ========= */
+/* ------------------ Skeleton (cargando) ------------------ */
 .skeleton {
     display: inline-block;
     height: 12px;
@@ -340,7 +465,7 @@ h5 {
     padding-bottom: 16px;
 }
 
-/* ========= Paginación / info ========= */
+/* ------------------ Paginación / info ------------------ */
 #histInfo {
     color: var(--text-2);
     font-size: .875rem;
@@ -359,9 +484,9 @@ h5 {
     background: #ecf4ff;
 }
 
-/* ========= Modal ========= */
+/* ------------------ Modal: Detalle / Editar ------------------ */
 .modal-content {
-    background: #ffffff;
+    background: var(--bg-container);
     border: 1px solid var(--border-1);
     border-radius: var(--radius-xxl);
     box-shadow: var(--shadow);
@@ -377,8 +502,8 @@ h5 {
 
 .modal-title {
     color: #fff;
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 1.05rem;
     margin: 0;
 }
 
@@ -395,23 +520,14 @@ h5 {
     font-size: .875rem;
 }
 
-/* ========= Botón Refrescar ========= */
-#btnRefrescar {
-    border-radius: 999px;
-    padding: .35rem .8rem;
-    background: #f1f8ff;
-    border: 1px solid var(--border-1);
-    color: var(--brand-start);
-    transition: var(--trans);
+@media (prefers-color-scheme: dark) {
+    #detalleMeta {
+        background: #0b152c;
+        border-color: #1e293b;
+    }
 }
 
-#btnRefrescar:hover {
-    box-shadow: var(--ring);
-    border-color: var(--brand-mid);
-    background: #e7f3ff;
-}
-
-/* ========= Scrollbar ========= */
+/* ------------------ Scrollbar ------------------ */
 * {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
@@ -427,15 +543,25 @@ h5 {
     border-radius: 999px;
 }
 
-/* ========= Responsivo ========= */
-/* 1) Ajustes suaves de tipografía/espaciado en <= 1200px */
+@media (prefers-color-scheme: dark) {
+    * {
+        scrollbar-color: #334155 transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background: #334155;
+    }
+}
+
+/* ------------------ Responsivo ------------------ */
+/* 1) <=1200px: asegura ancho mínimo de primera columna */
 @media (max-width: 1200px) {
     .table thead th:first-child {
         min-width: 180px;
     }
 }
 
-/* 2) Tablets: comprimimos paddings y escondemos columna "Usuario" (col 3) si el ancho lo requiere */
+/* 2) <=992px: comprimimos paddings y ocultamos "Usuario" (col 3) para no romper layout */
 @media (max-width: 992px) {
     .container {
         padding: 16px;
@@ -449,14 +575,13 @@ h5 {
         padding: calc(var(--table-pad) - 2px) 12px;
     }
 
-    /* Ocultamos columna 3 ("Usuario") en tablet para evitar desbordes */
     .table thead th:nth-child(3),
     .table tbody td:nth-child(3) {
         display: none;
     }
 }
 
-/* 3) Móviles medianos */
+/* 3) <=768px: filtros a 2 columnas fluidas y tipografía compacta */
 @media (max-width: 768px) {
 
     .btn,
@@ -468,7 +593,6 @@ h5 {
         font-size: .95rem;
     }
 
-    /* Filtros: asegura 2 columnas fluidas */
     #formFiltros {
         gap: 10px;
     }
@@ -478,13 +602,14 @@ h5 {
         flex: 1 1 min(48%, 360px);
     }
 
-    /* Evita que el header tape el contenido sticky */
     .table thead th {
         top: 0;
     }
+
+    /* evita superposición */
 }
 
-/* 4) Móviles pequeños: escondemos también "Frames" (col 4) y estrechamos aún más */
+/* 4) <=576px: filtros a 1 columna y ocultamos "Frames" (col 4) */
 @media (max-width: 576px) {
     h5 {
         font-size: 1.1rem;
@@ -498,28 +623,47 @@ h5 {
         font-size: .9rem;
     }
 
-    /* 1 columna por fila de filtro cuando el ancho es muy estrecho */
     #formFiltros>[class*="col-"] {
         min-width: 100%;
         flex: 1 1 100%;
     }
 
-    /* Ocultar "Frames" (col 4) para priorizar Fecha, Etiqueta y Acciones */
     .table thead th:nth-child(4),
     .table tbody td:nth-child(4) {
         display: none;
     }
 }
 
-/* 5) Súper-compacto (teléfonos muy angostos) */
+/* 5) <=420px: súper compacto */
 @media (max-width: 420px) {
-
-    /* Reajustar paddings de celdas y botón */
     :root {
         --table-pad: 10px;
     }
 
     #btnRefrescar {
         padding: .3rem .7rem;
+    }
+}
+
+/* ------------------ Impresión (por si lo anexas al informe) ------------------ */
+@media print {
+    body {
+        background: #fff;
+        color: #000;
+    }
+
+    .container {
+        box-shadow: none;
+        border: none;
+    }
+
+    .btn,
+    .btn-group,
+    #formFiltros {
+        display: none !important;
+    }
+
+    .table thead th {
+        position: static;
     }
 }

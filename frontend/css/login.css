@@ -1,43 +1,103 @@
+/* ===== Paleta y tokens UG ===== */
 :root {
     --ug-blue: #0056b3;
+    /* azul UG */
+    --ug-blue-2: #00a8e8;
+    /* acento celeste UG */
     --ug-light-blue: #007bff;
-    --ug-gray: #f0f4f8;
-    --ug-shadow: rgba(0, 0, 0, 0.1);
+    /* gradiente */
+    --ug-ink: #0f172a;
+    /* texto principal */
+    --ug-muted: #475569;
+    /* texto secundario */
+    --ug-gray: #eef2f6;
+    /* fondos suaves */
+    --ug-shadow: rgba(0, 0, 0, 0.15);
+    --card-bg: rgba(255, 255, 255, 0.92);
+    --card-br: 20px;
+    --radius-sm: 12px;
 }
 
-/* === Fondo con imagen === */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ug-blue: #4ea0ff;
+        --ug-blue-2: #42d5ff;
+        --ug-light-blue: #62b0ff;
+        --ug-ink: #e6edf6;
+        --ug-muted: #9fb0c5;
+        --ug-gray: #0b1220;
+        --card-bg: rgba(17, 24, 39, 0.70);
+        --ug-shadow: rgba(0, 0, 0, 0.5);
+    }
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    color: var(--ug-ink);
+    background: #e9f2ff;
+    /* fallback */
+    overflow: hidden;
+    /* evita scroll al 100vh con fondos fijos */
+}
+
+/* ===== Fondo con tu imagen + overlays ===== */
 .fondo-bg {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background-image: url('../img/logo1.jpg');
-    /* Asegúrate que exista en img/ */
-    background-size: cover;
-    background-position: center top;
+    /* tu imagen de la fachada */
     background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center 35%;
     background-attachment: fixed;
-    z-index: -1;
-    opacity: 0.85;
+    z-index: -3;
 }
 
-/* === Contenedor principal === */
+/* Oscurecer suavemente el lado derecho para legibilidad del card */
+.fondo-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(105deg,
+            rgba(0, 0, 0, 0.05) 0%,
+            rgba(0, 0, 0, 0.05) 45%,
+            rgba(0, 0, 0, 0.28) 70%,
+            rgba(0, 0, 0, 0.38) 100%);
+    z-index: -2;
+}
+
+/* Líneas curvas sutiles (marca UG) */
+.fondo-trazos {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(800px 400px at 10% 15%, rgba(0, 86, 179, 0.18), transparent 60%),
+        radial-gradient(700px 350px at 90% 85%, rgba(0, 168, 232, 0.18), transparent 60%);
+    mix-blend-mode: soft-light;
+}
+
+/* ===== Tarjeta de login ===== */
 .login-container {
     width: 100%;
-    max-width: 420px;
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(3px);
+    max-width: 460px;
+    background-color: var(--card-bg);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
     padding: 2rem;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px var(--ug-shadow);
-    animation: fadeInUp 0.7s ease;
+    border-radius: var(--card-br);
+    box-shadow: 0 18px 40px var(--ug-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    animation: fadeInUp .7s ease both;
 }
 
-/* Animación de entrada */
 @keyframes fadeInUp {
     from {
-        transform: translateY(30px);
+        transform: translateY(24px);
         opacity: 0;
     }
 
@@ -47,97 +107,175 @@
     }
 }
 
-/* Logo */
+/* Marca */
 .logo-img {
-    max-width: 190px;
+    max-width: 200px;
     height: auto;
     display: block;
-    margin: 0 auto 1rem;
+    margin-inline: auto;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .16));
 }
 
-/* Etiquetas */
+.subtitulo {
+    color: var(--ug-muted);
+}
+
+/* Labels */
 label {
     font-weight: 600;
-    margin-bottom: 0.4rem;
+    margin-bottom: .4rem;
 }
 
-/* Inputs */
+/* Input group base */
 .input-group-text {
     background-color: var(--ug-gray);
     color: var(--ug-blue);
+    border: 1px solid transparent;
     border-right: none;
+    user-select: none;
 }
 
 .input-group .form-control {
     border-left: none;
 }
 
+/* Inputs */
 .form-control {
-    padding: 0.75rem;
+    padding: .78rem;
     font-size: 1rem;
-    transition: border 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid transparent;
+    transition: border .2s ease, box-shadow .2s ease, background-color .2s ease;
+    background-color: rgba(255, 255, 255, .88);
+}
+
+.form-control::placeholder {
+    opacity: .7;
 }
 
 .form-control:focus {
     border-color: var(--ug-light-blue);
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 0.18rem rgba(0, 123, 255, 0.25);
+    background-color: rgba(255, 255, 255, 1);
+    outline: none;
 }
 
-/* Botón */
+/* Unión visual */
+.input-group> :first-child {
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+}
+
+.input-group>.form-control {
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+}
+
+/* Toggle contraseña */
+#togglePassword {
+    cursor: pointer;
+    transition: background-color .2s ease, transform .1s ease, opacity .2s ease;
+}
+
+#togglePassword:hover {
+    background-color: rgba(0, 0, 0, .05);
+    opacity: .92;
+}
+
+#togglePassword:active {
+    transform: scale(0.98);
+}
+
+/* Botón principal */
 .btn-primary {
-    background-color: var(--ug-blue);
+    background: linear-gradient(135deg, var(--ug-blue), var(--ug-light-blue));
     border: none;
-    font-weight: 600;
-    padding: 0.7rem;
+    font-weight: 700;
+    letter-spacing: .2px;
+    padding: .85rem;
     font-size: 1rem;
-    transition: all 0.3s ease;
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+    border-radius: 12px;
 }
 
 .btn-primary:hover {
-    background-color: #004a9f;
-    transform: translateY(-1.5px);
+    transform: translateY(-1px);
+    filter: brightness(1.06);
+    box-shadow: 0 10px 24px rgba(0, 123, 255, 0.28);
 }
 
-.btn-primary i {
-    transition: transform 0.3s ease;
+.btn-primary:active {
+    transform: translateY(0);
 }
 
-.btn-primary:hover i {
-    transform: translateX(3px);
+/* Error */
+#error-box {
+    min-height: 1.25rem;
 }
 
-/* Mensaje de error */
-#error-msg {
-    font-size: 0.9rem;
-    color: red;
-    margin-top: 0.5rem;
-    text-align: center;
+.error-text {
+    color: #e11d48;
+    /* rojo accesible */
+    animation: shake-kf 0.45s both;
 }
 
-/* === Responsivo === */
-@media (max-width: 576px) {
+@keyframes shake-kf {
+
+    10%,
+    90% {
+        transform: translateX(-1px);
+    }
+
+    20%,
+    80% {
+        transform: translateX(2px);
+    }
+
+    30%,
+    50%,
+    70% {
+        transform: translateX(-4px);
+    }
+
+    40%,
+    60% {
+        transform: translateX(4px);
+    }
+}
+
+/* Accesibilidad: foco visible */
+:focus-visible {
+    outline: 2px dashed var(--ug-blue-2);
+    outline-offset: 2px;
+}
+
+/* ===== Responsivo ===== */
+/* En desktop, el card “se pega” a la derecha con margen para respirar */
+@media (min-width: 992px) {
     .login-container {
-        padding: 1.5rem 1rem;
+        margin-right: clamp(24px, 6vw, 72px);
+    }
+}
+
+/* En mobile, centrado, y bajar contraste del overlay para que no oscurezca de más */
+@media (max-width: 575.98px) {
+    body {
+        overflow: auto;
+    }
+
+    .login-container {
+        margin: 24px auto;
+        max-width: 92%;
+        padding: 1.25rem 1rem 1.1rem;
         border-radius: 16px;
     }
 
-    .form-control,
-    .btn-primary {
-        font-size: 0.95rem;
-        padding: 0.6rem;
-    }
-
-    label {
-        font-size: 0.95rem;
-    }
-
-    .logo-img {
-        max-width: 180px;
+    .fondo-overlay {
+        background: linear-gradient(120deg,
+                rgba(0, 0, 0, 0.10) 0%,
+                rgba(0, 0, 0, 0.18) 100%);
     }
 
     .fondo-bg {
-        background-position: center;
-        background-attachment: scroll;
-        opacity: 0.92;
+        background-position: center top;
     }
 }

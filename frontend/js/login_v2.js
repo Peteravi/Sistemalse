@@ -1,49 +1,89 @@
-document.getElementById("btnAcceder").addEventListener("click", async () => {
-    const usuario = document.getElementById("usuario").value.trim();
-    const contrasena = document.getElementById("contrasena").value.trim();
-    const errorMsg = document.getElementById("error-msg");
+document.addEventListener("DOMContentLoaded", () => {
+    const usuario = document.getElementById("usuario");
+    const contrasena = document.getElementById("contrasena");
+    const btnAcceder = document.getElementById("btnAcceder");
+    const errorBox = document.getElementById("error-box");
+    const toggleSpan = document.getElementById("togglePassword");
+    const toggleIcon = document.getElementById("icono-ojo");
+    const anio = document.getElementById("anio");
+    if (anio) anio.textContent = new Date().getFullYear();
 
-    errorMsg.style.display = "none";
+    const showError = (msg) => {
+        if (!errorBox) return;
+        errorBox.innerHTML = `<span class="error-text">${msg}</span>`;
+    };
+    const clearError = () => (errorBox.innerHTML = "");
 
-    if (!usuario || !contrasena) {
-        errorMsg.textContent = "⚠️ Completa todos los campos.";
-        errorMsg.style.display = "block";
-        return;
+    // --- Mostrar/Ocultar contraseña ---
+    function togglePassword() {
+        if (!contrasena || !toggleIcon || !toggleSpan) return;
+        const hidden = contrasena.type === "password";
+        contrasena.type = hidden ? "text" : "password";
+        toggleIcon.classList.toggle("bi-eye", !hidden);
+        toggleIcon.classList.toggle("bi-eye-slash", hidden);
+        toggleSpan.title = hidden ? "Ocultar contraseña" : "Mostrar contraseña";
+        toggleSpan.setAttribute("aria-pressed", String(hidden));
     }
 
-    try {
-        const res = await fetch("https://lse-backend-479238723367.us-central1.run.app/login", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ usuario, contrasena })
+    // Accesibilidad del “botón” del ojo
+    if (toggleSpan) {
+        toggleSpan.setAttribute("role", "button");
+        toggleSpan.setAttribute("tabindex", "0");
+        toggleSpan.setAttribute("aria-label", "Mostrar u ocultar contraseña");
+        toggleSpan.setAttribute("aria-pressed", "false");
+        toggleSpan.addEventListener("click", togglePassword);
+        toggleSpan.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                togglePassword();
+            }
         });
+    }
 
-        const data = await res.json();
+    // Enter para enviar
+    [usuario, contrasena].forEach((el) =>
+        el?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") btnAcceder?.click();
+        })
+    );
 
-        if (res.ok && data.ok) {
-            window.location.replace("https://gestosug2025-peter.web.app/sistema_v2.html");
-        } else {
-            throw new Error(data.message || "Credenciales inválidas");
+    // --- Login ---
+    btnAcceder?.addEventListener("click", async () => {
+        clearError();
+        const u = usuario?.value.trim();
+        const p = contrasena?.value.trim();
+
+        if (!u || !p) {
+            showError("⚠️ Completa todos los campos.");
+            return;
         }
 
-    } catch (error) {
-        errorMsg.textContent = "❌ Error al iniciar sesión.";
-        errorMsg.style.display = "block";
-    }
+        const originalHTML = btnAcceder.innerHTML;
+        btnAcceder.disabled = true;
+        btnAcceder.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Accediendo...
+    `;
+
+        try {
+            const res = await fetch("https://lse-backend-479238723367.us-central1.run.app/login", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ usuario: u, contrasena: p })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok) {
+                window.location.replace("https://gestosug2025-peter.web.app/sistema_v2.html");
+            } else {
+                showError(data.message || "Credenciales inválidas.");
+            }
+        } catch (e) {
+            showError("❌ Error al iniciar sesión.");
+        } finally {
+            btnAcceder.disabled = false;
+            btnAcceder.innerHTML = originalHTML;
+        }
+    });
 });
-
-function togglePassword() {
-    const input = document.getElementById("contrasena");
-    const icono = document.getElementById("icono-ojo");
-
-    if (input.type === "password") {
-        input.type = "text";
-        icono.classList.remove("bi-eye");
-        icono.classList.add("bi-eye-slash");
-    } else {
-        input.type = "password";
-        icono.classList.remove("bi-eye-slash");
-        icono.classList.add("bi-eye");
-    }
-}

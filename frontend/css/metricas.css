@@ -1,35 +1,79 @@
 :root {
-    --bg: #f8f9fa;
-    /* Fondo claro */
+    --bg: #f6f8fc;
+    --bg-grad:
+        radial-gradient(1200px 600px at -10% -10%, rgba(13, 110, 253, .06), transparent 60%),
+        radial-gradient(900px 500px at 110% 0%, rgba(13, 110, 253, .05), transparent 60%);
     --card: #ffffff;
-    /* Fondo tarjetas */
-    --txt: #212529;
-    /* Texto principal */
-    --txt-muted: #6c757d;
-    /* Texto atenuado */
-    --stroke: rgba(0, 0, 0, .08);
-    /* Bordes sutiles */
-    --focus: rgba(13, 110, 253, .25);
-    --primary: #0d6efd;
-    /* Azul Bootstrap */
-    --shadow: 0 4px 12px rgba(0, 0, 0, .08);
+    --surface: #fbfbfe;
 
-    /* Alturas adaptativas para charts */
+    --txt: #111827;
+    /* principal */
+    --txt-muted: #6b7280;
+    /* atenuado */
+
+    --primary: #0d6efd;
+    /* azul Bootstrap */
+    --ring: rgba(13, 110, 253, .28);
+    --stroke: rgba(17, 24, 39, .08);
+
+    --shadow-xs: 0 1px 2px rgba(16, 24, 40, .06);
+    --shadow: 0 6px 18px rgba(16, 24, 40, .08);
+    --shadow-lg: 0 12px 28px rgba(16, 24, 40, .12);
+
+    /* charts */
     --chart-h-lg: 42vh;
     --chart-h-md: 36vh;
     --chart-h-sm: 28vh;
+
+    --radius: 16px;
+    --radius-lg: 20px;
+    --t: .25s;
+    /* transición base */
 }
 
-/* ---------- Base ---------- */
+/* -------- Modo oscuro automático -------- */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0b1020;
+        --bg-grad:
+            radial-gradient(1200px 600px at -10% -10%, rgba(56, 189, 248, .10), transparent 60%),
+            radial-gradient(900px 500px at 110% 0%, rgba(59, 130, 246, .10), transparent 60%);
+        --card: #0f172a;
+        --surface: #0b1224;
+
+        --txt: #e5e7eb;
+        --txt-muted: #a8b3cf;
+
+        --primary: #60a5fa;
+        --ring: rgba(96, 165, 250, .35);
+        --stroke: rgba(148, 163, 184, .18);
+
+        --shadow-xs: 0 1px 2px rgba(2, 6, 23, .6);
+        --shadow: 0 6px 18px rgba(2, 6, 23, .55);
+        --shadow-lg: 0 12px 28px rgba(2, 6, 23, .6);
+    }
+}
+
+/* -------- Base -------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
 html,
 body {
     height: 100%;
 }
 
 body {
+    margin: 0;
     font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     background: var(--bg);
+    background-image: var(--bg-grad);
     color: var(--txt);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -45,34 +89,101 @@ label {
     color: var(--txt);
 }
 
-/* ---------- Tarjetas ---------- */
+.container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+/* -------- Encabezado -------- */
+.metrics-header {
+    padding: .25rem .25rem 0 .25rem;
+}
+
+.metrics-header h1 {
+    font-weight: 700;
+    letter-spacing: .2px;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0;
+    line-height: 1.2;
+    background: linear-gradient(90deg, var(--txt), color-mix(in oklab, var(--primary) 55%, var(--txt)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* el gradiente colorea el texto */
+}
+
+.metrics-header h1 i {
+    vertical-align: -1px;
+}
+
+/* -------- Tarjetas -------- */
 .card {
-    background: var(--card);
+    background: linear-gradient(180deg, var(--card), var(--surface));
     border: 1px solid var(--stroke);
-    border-radius: 16px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-xs);
+    transition: transform var(--t) ease, box-shadow var(--t) ease, border-color var(--t) ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
     box-shadow: var(--shadow);
+    border-color: color-mix(in oklab, var(--primary) 26%, var(--stroke));
+}
+
+/* Vidrio sutil si el navegador soporta */
+@supports (backdrop-filter: blur(4px)) {
+    .card {
+        background: color-mix(in oklab, var(--card) 82%, transparent);
+        backdrop-filter: saturate(140%) blur(4px);
+    }
 }
 
 /* KPIs */
 .stat {
-    font-weight: 700;
-    font-size: clamp(1.15rem, 1.1rem + 1vw, 1.8rem);
-    line-height: 1.1;
+    font-weight: 800;
+    font-size: clamp(1.2rem, 1rem + 1.4vw, 2rem);
+    line-height: 1.05;
+    letter-spacing: .2px;
+    margin-top: .25rem;
+    background: linear-gradient(90deg, var(--primary), color-mix(in oklab, var(--primary) 60%, #22d3ee));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
-/* Texto atenuado */
 .muted,
 .text-muted {
     color: var(--txt-muted) !important;
 }
 
-/* ---------- Controles / Filtros ---------- */
+/* -------- Controles / Filtros -------- */
+.filter-row .form-label {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--txt-muted);
+    letter-spacing: .2px;
+}
+
 .filter-row .form-control,
 .filter-row .form-select {
-    /* Fallback sin color-mix para compatibilidad amplia */
     background: #fff;
     color: var(--txt);
     border-color: #dfe3e8;
+    border-radius: 12px;
+    transition: box-shadow var(--t) ease, border-color var(--t) ease, background-color var(--t) ease;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .filter-row .form-control,
+    .filter-row .form-select {
+        background: #0b152c;
+        border-color: #1e293b;
+        color: var(--txt);
+    }
 }
 
 .filter-row .form-control:focus,
@@ -80,28 +191,55 @@ label {
 .form-control:focus,
 .form-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 .2rem var(--focus);
+    box-shadow: 0 0 0 .22rem var(--ring);
 }
 
-/* Panel auto-actualizar */
+/* Botón aplicar */
+.filter-row .btn,
+.btn-primary {
+    border-radius: 12px;
+    box-shadow: 0 6px 16px color-mix(in oklab, var(--primary) 22%, transparent);
+    transition: transform var(--t) ease, box-shadow var(--t) ease, filter var(--t) ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+    filter: saturate(1.1);
+}
+
+.btn-primary:focus-visible {
+    box-shadow: 0 0 0 .22rem var(--ring);
+}
+
+/* Auto-actualización */
 #autoRefreshSec {
     max-width: 140px;
 }
 
-@media (max-width: 575.98px) {
-    .filter-row .btn {
-        width: 100%;
-    }
+.form-check-input {
+    cursor: pointer;
+    border-color: #cfd4da;
 }
 
-/* ---------- Canvases / Charts ---------- */
-/* Ignora el atributo height del HTML para ser realmente responsive */
+.form-check-input:focus {
+    box-shadow: 0 0 0 .22rem var(--ring);
+    border-color: var(--primary);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* -------- Charts (responsivos reales) -------- */
 canvas[id^="chart"] {
     width: 100% !important;
     height: auto !important;
+    /* ignora atributo height del HTML */
     min-height: 220px;
-    border-radius: 12px;
     display: block;
+    border-radius: 12px;
 }
 
 @media (min-width: 1200px) {
@@ -122,51 +260,87 @@ canvas[id^="chart"] {
     }
 }
 
-/* ---------- Listas ---------- */
+/* Mejora de la leyenda generada por Chart.js */
+.chartjs-legend,
+.chart-legend,
+#chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem .75rem;
+    align-items: center;
+    margin: .25rem 0 .5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.chartjs-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.chartjs-legend li span {
+    display: inline-block;
+    width: .9rem;
+    height: .9rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--card) 70%, transparent);
+}
+
+/* -------- Lista de categorías -------- */
 #listaCategorias {
     list-style: none;
+    margin: 0;
     padding-left: 0;
 }
 
 #listaCategorias li {
-    padding: .5rem .25rem;
-    border-bottom: 1px dashed var(--stroke);
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    justify-content: space-between;
     gap: .75rem;
+    padding: .6rem .25rem;
+    border-bottom: 1px dashed var(--stroke);
 }
 
 #listaCategorias li:last-child {
     border-bottom: 0;
 }
 
+#listaCategorias .badge,
 #listaCategorias small {
-    color: var(--txt-muted);
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+    color: color-mix(in oklab, var(--primary) 70%, #111);
+    border: 1px solid color-mix(in oklab, var(--primary) 26%, var(--stroke));
+    padding: .25rem .5rem;
+    border-radius: 999px;
+    font-weight: 600;
 }
 
-/* ---------- Layouts ---------- */
-.container {
-    padding-top: 1rem;
-    padding-bottom: 2rem;
+@media (prefers-color-scheme: dark) {
+
+    #listaCategorias .badge,
+    #listaCategorias small {
+        background: color-mix(in oklab, var(--primary) 20%, transparent);
+        color: #e7f0ff;
+        border-color: color-mix(in oklab, var(--primary) 40%, #1f2937);
+    }
 }
 
-.metrics-header h1 i {
-    vertical-align: -1px;
-}
-
+/* -------- Utilidades de layout -------- */
 .row.g-3>[class*="col-"] {
     min-width: 0;
 }
 
 /* evita overflow en grids */
 
-/* ---------- Accesibilidad ---------- */
+/* -------- Accesibilidad -------- */
 :focus-visible {
     outline: 2px dashed var(--primary);
     outline-offset: 2px;
 }
 
-/* Botón “Volver” (usabas btn-outline-light; en tema claro lo adaptamos) */
+/* Botón "Volver" con tema claro/oscuro */
 .btn-outline-light {
     --bs-btn-color: #495057;
     --bs-btn-border-color: #cfd4da;
@@ -175,27 +349,17 @@ canvas[id^="chart"] {
     --bs-btn-hover-border-color: #adb5bd;
 }
 
-/* ---------- Utilidades ---------- */
-.shadow-soft {
-    box-shadow: var(--shadow);
+@media (prefers-color-scheme: dark) {
+    .btn-outline-light {
+        --bs-btn-color: #e5e7eb;
+        --bs-btn-border-color: #334155;
+        --bs-btn-hover-bg: #1f2937;
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-border-color: #475569;
+    }
 }
 
-.rounded-2xl {
-    border-radius: 18px;
-}
-
-.clamp-line {
-    line-height: 1.3;
-}
-
-/* ---------- Modales (si abres dentro de iframe) ---------- */
-.modal .modal-content {
-    background: var(--card);
-    color: var(--txt);
-    border: 1px solid var(--stroke);
-}
-
-/* ---------- Scrollbar sutil ---------- */
+/* -------- Scrollbar sutil -------- */
 * {
     scrollbar-width: thin;
     scrollbar-color: #cfd4da transparent;
@@ -215,7 +379,34 @@ canvas[id^="chart"] {
     background: transparent;
 }
 
-/* ---------- Impresión ---------- */
+@media (prefers-color-scheme: dark) {
+    * {
+        scrollbar-color: #334155 transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background: #334155;
+    }
+}
+
+/* -------- Animación de entrada suave -------- */
+@keyframes riseIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: riseIn .4s ease both;
+}
+
+/* -------- Impresión -------- */
 @media print {
     body {
         background: #fff;
@@ -235,4 +426,105 @@ canvas[id^="chart"] {
     .filter-row {
         display: none !important;
     }
+}
+
+/* -------- Respeto a usuarios con menos movimiento -------- */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* ===================== Modal Métricas ===================== */
+/* Backdrop más elegante y sin halos blancos alrededor */
+.modal-backdrop.show {
+    background-color: rgba(2, 6, 23, .65);
+    backdrop-filter: blur(2px) saturate(120%);
+}
+
+/* Fija el borde blanco del contorno y refuerza la sombra */
+.modal-content {
+    background: linear-gradient(180deg, var(--card), var(--surface));
+    border: 1px solid color-mix(in oklab, var(--primary) 26%, var(--stroke));
+    border-radius: 18px;
+    box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--primary) 10%, transparent),
+        var(--shadow-lg);
+    overflow: hidden;
+    /* elimina halos/bordes internos */
+    background-clip: padding-box;
+}
+
+/* Cabecera clara para que el título negro tenga contraste en cualquier tema */
+.modal-header {
+    background: linear-gradient(180deg, #f6f8fc, #eef2ff);
+    border-bottom: 1px solid color-mix(in oklab, var(--primary) 18%, var(--stroke));
+}
+
+/* Título del modal en negro (como pediste) */
+#modalMetricasLabel,
+.modal-title {
+    color: #000 !important;
+    font-weight: 800;
+    letter-spacing: .2px;
+}
+
+/* Botón cerrar acorde al encabezado claro */
+.modal-header .btn-close {
+    filter: none !important;
+    opacity: .7;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+/* ===================== “Boost” visual de cards de gráfico ===================== */
+.chart-card,
+.card.chart {
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-card::before,
+.card.chart::before {
+    content: "";
+    position: absolute;
+    inset: -40% -20% auto -20%;
+    height: 65%;
+    background:
+        radial-gradient(600px 220px at 10% 0%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 60%),
+        radial-gradient(400px 180px at 80% 0%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 60%);
+    pointer-events: none;
+    opacity: .6;
+}
+
+/* === Solo para el modal de métricas === */
+#modalMetricas .modal-title,
+#modalMetricas #modalMetricasLabel {
+    color: #000 !important;
+    -webkit-text-fill-color: #000;
+    /* Safari */
+}
+
+/* Icono del título en negro */
+#modalMetricas .modal-title i.bi {
+    color: #000 !important;
+}
+
+/* (Opcional) encabezado claro solo en este modal, para mejor contraste */
+#modalMetricas .modal-header {
+    background: linear-gradient(180deg, #f6f8fc, #eef2ff);
+    border-bottom: 1px solid rgba(13, 110, 253, .18);
+}
+
+/* (Opcional) botón cerrar acorde al encabezado claro */
+#modalMetricas .modal-header .btn-close {
+    filter: none !important;
+    opacity: .75;
+}
+
+#modalMetricas .modal-header .btn-close:hover {
+    opacity: 1;
 }

@@ -1,8 +1,15 @@
+// js/ui.js
+// ---------------------------------------------------------
+// UI principal para captura LSE con optimizaciones de rendimiento
+// Mantiene TODAS las funcionalidades, rutas y atajos existentes
+// ---------------------------------------------------------
 import { crearSecuencia, guardarFrame, exportarUrl, logout } from "./api.js";
 import { mostrarAlertaBootstrap, showToast, inferirTipoValor, setEstado } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-    // ------- DOM -------
+    // ==============================
+    // ------- DOM / Referencias ----
+    // ==============================
     const $ = (id) => document.getElementById(id);
     const startBtn = $("startBtn");
     const stopBtn = $("stopBtn");
@@ -23,10 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const overlay = $("overlay");
     const indicadorResolucion = $("indicadorResolucion");
     const indicadorGrabando = $("indicadorGrabando");
+    const indicadorFps = $("indicadorFps");
     const iframeHistorial = $("iframeHistorial");
     const iframeMetricas = $("iframeMetricas");
 
-    // Inyectar botón "Cambiar cámara" si no existe
+    // Inyectar botón "Cambiar cámara" si no existe (respeta tu maquetado)
     let btnCam = $("btnCambiarCamara");
     if (!btnCam) {
         const controls = captureStage?.querySelector(".capture-controls");
@@ -40,24 +48,50 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Permitir click en botones sobre el canvas
+    // Permitir hacer clic en controles sobre el canvas
     try {
         if (overlay) overlay.style.pointerEvents = "none";
         const controlsEl = captureStage?.querySelector(".capture-controls");
         if (controlsEl) controlsEl.style.zIndex = "5";
     } catch { }
 
-    // ------- Estado -------
+    // =======================================
+    // ------- Estado / Rendimiento ----------
+    // =======================================
     let secuenciaId = null;
     let capturing = false;
     let frameCounter = 0;
-    let inflight = 0;
+    let inflight = 0;       // peticiones guardar_frame en curso
+    let inFlightMP = false; // inferencia mpHands en curso
 
-    const TARGET_FPS = 10;
-    const MIN_INTERVAL_MS = Math.floor(1000 / TARGET_FPS);
+    // Procesamiento a baja resolución para MediaPipe (mejor FPS)
+    const PROC_W_DEFAULT = 320;
+    const PROC_H_DEFAULT = 180;
+    const procCanvas = document.createElement("canvas");
+    const procCtx = procCanvas.getContext("2d", { willReadFrequently: true });
+    procCanvas.width = PROC_W_DEFAULT;
+    procCanvas.height = PROC_H_DEFAULT;
+
+    // Envío al backend desacoplado del FPS de inferencia
+    let TARGET_SEND_FPS = 10;
+    let MIN_INTERVAL_MS = Math.floor(1000 / TARGET_SEND_FPS);
     let lastSentMs = 0;
 
-    // ------- Fullscreen -------
+    // Dibujar landmarks cada N frames para aligerar
+    const DRAW_EVERY_N = 2;
+    let drawTick = 0;
+
+    // Medidor de FPS
+    let frames = 0;
+    let lastFpsT = performance.now();
+
+    // Bucle de render
+    let loopRunning = false;
+    let usingRVFC = false; // requestVideoFrameCallback
+
+    // ===================================
+    // ------- Pantalla completa ---------
+    // ===================================
     const isFS = () =>
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
@@ -176,13 +210,40 @@ document.addEventListener("DOMContentLoaded", () => {
         tTap = n;
     });
     document.addEventListener("keydown", (e) => {
-        if (e.key.toLowerCase() === "f") btnFS?.click();
+        if ((e.key || "").toLowerCase() === "f") btnFS?.click();
     });
 
-    // ------- Cámara (getUserMedia) -------
+    // ===================================
+    // ------- Vista (flip/zoom) ---------
+    // ===================================
+    function applyViewTransform(facing) {
+        const flip = facing === "user" ? -1 : 1;
+        const scale = facing === "user" ? 0.92 : 1;
+
+        if (video) video.style.transform = `scaleX(${flip}) scale(${scale})`;
+        if (overlay) overlay.style.transform = `scaleX(${flip}) scale(${scale})`;
+
+        try {
+            mpHands?.setOptions?.({ selfieMode: facing === "user" });
+        } catch { }
+    }
+
+    // ===================================
+    // ------- Cámara / getUserMedia -----
+    // ===================================
     const LS = { facing: "lse_facing", devUser: "lse_dev_user", devEnv: "lse_dev_env" };
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    function pickVideoConstraints() {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const idealW = isMobile ? 640 : 960;
+        const idealH = isMobile ? 360 : 540;
+        // Baja resolución fija para el canvas de procesamiento (no tocar)
+        procCanvas.width = PROC_W_DEFAULT;
+        procCanvas.height = PROC_H_DEFAULT;
+        return { width: { ideal: idealW }, height: { ideal: idealH } };
+    }
 
     const Cam = {
         stream: null,
@@ -205,9 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     await sleep(80);
                 }
             } catch { }
-            this.devices = (await navigator.mediaDevices.enumerateDevices()).filter(
-                (d) => d.kind === "videoinput"
-            );
+            this.devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
             return this.devices;
         },
 
@@ -229,9 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 this.stream?.getTracks?.().forEach((t) => t.stop());
                 if (video) {
-                    try {
-                        video.pause();
-                    } catch { }
+                    try { video.pause(); } catch { }
                     video.srcObject = null;
                 }
             } catch { }
@@ -240,31 +297,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         async openStream(targetFacing) {
             await this.ensureDevices();
+            const common = pickVideoConstraints();
+
             const known = targetFacing === "user" ? this.deviceIdUser : this.deviceIdEnv;
             if (known) {
                 try {
                     return await navigator.mediaDevices.getUserMedia({
                         audio: false,
-                        video: { deviceId: { exact: known } },
+                        video: { deviceId: { exact: known }, ...common },
                     });
                 } catch { }
             }
             try {
                 return await navigator.mediaDevices.getUserMedia({
                     audio: false,
-                    video: { facingMode: { exact: targetFacing } },
+                    video: { facingMode: { exact: targetFacing }, ...common },
                 });
             } catch { }
             try {
                 return await navigator.mediaDevices.getUserMedia({
                     audio: false,
-                    video: { facingMode: { ideal: targetFacing } },
+                    video: { facingMode: { ideal: targetFacing }, ...common },
                 });
             } catch { }
             const wanted = this.pickByLabel(targetFacing);
             return await navigator.mediaDevices.getUserMedia({
                 audio: false,
-                video: { deviceId: { exact: wanted } },
+                video: { deviceId: { exact: wanted }, ...common },
             });
         },
 
@@ -283,7 +342,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 updateStage();
 
-                // Mapear deviceId por facing real
                 const tr = stream.getVideoTracks?.()[0];
                 const settings = tr?.getSettings?.() || {};
                 const fm = (settings.facingMode || "").toLowerCase();
@@ -291,9 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = (tr?.label || "").toLowerCase();
                 const realFacing =
                     fm ||
-                    (/(back|rear|environment|trasera|principal|wide)/i.test(label)
-                        ? "environment"
-                        : "user");
+                    (/(back|rear|environment|trasera|principal|wide)/i.test(label) ? "environment" : "user");
 
                 if (realFacing === "user") {
                     this.deviceIdUser = did || this.deviceIdUser || this.pickByLabel("user");
@@ -309,7 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         await this.shutdown();
                         const s2 = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { deviceId: { exact: correctId } },
+                            video: { deviceId: { exact: correctId }, ...pickVideoConstraints() },
                         });
                         this.stream = s2;
                         video.srcObject = s2;
@@ -319,6 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 this.facing = facing;
                 localStorage.setItem(LS.facing, this.facing);
+                applyViewTransform(this.facing);
             } catch (e) {
                 if (e?.name === "NotReadableError") {
                     mostrarAlertaBootstrap(
@@ -327,11 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         7000
                     );
                 } else if (e?.name === "NotAllowedError") {
-                    mostrarAlertaBootstrap(
-                        "🚫 Permiso de cámara denegado. Habilítalo en Ajustes del sitio.",
-                        "danger",
-                        7000
-                    );
+                    mostrarAlertaBootstrap("🚫 Permiso de cámara denegado. Habilítalo en Ajustes del sitio.", "danger", 7000);
                 } else if (e?.name === "NotFoundError") {
                     mostrarAlertaBootstrap("📷 No se encontró cámara en el dispositivo.", "danger", 5000);
                 } else {
@@ -344,27 +397,25 @@ document.addEventListener("DOMContentLoaded", () => {
         },
     };
 
-    // ------- MediaPipe Hands -------
+    // ===================================
+    // ------- MediaPipe Hands -----------
+    // ===================================
     let mpHands = null;
-    let rafId = null;
-    let sending = false;
 
     function initMP() {
         if (mpHands) return;
         if (typeof Hands === "undefined") {
-            throw new Error(
-                "MediaPipe Hands no está cargado. Incluye los <script> de @mediapipe/hands y drawing_utils en el HTML."
-            );
+            throw new Error("MediaPipe Hands no está cargado. Incluye los <script> en el HTML.");
         }
         mpHands = new Hands({
             locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
         });
         mpHands.setOptions({
             maxNumHands: 1,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.8,
-            minTrackingConfidence: 0.7,
-            selfieMode: true,
+            modelComplexity: 0,          // ↓ complejidad = +FPS
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.5,
+            selfieMode: true,            // se sincroniza en applyViewTransform
         });
         mpHands.onResults(onResults);
     }
@@ -387,52 +438,101 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch { }
     }
 
+    function updateFpsCounter() {
+        frames++;
+        const now = performance.now();
+        if (now - lastFpsT >= 1000) {
+            const fps = Math.round((frames * 1000) / (now - lastFpsT));
+            if (indicadorFps) indicadorFps.textContent = `FPS: ${fps}`;
+            frames = 0;
+            lastFpsT = now;
+
+            // Adaptación simple del rate de envío
+            if (fps < 18 && TARGET_SEND_FPS !== 8) {
+                TARGET_SEND_FPS = 8;
+                MIN_INTERVAL_MS = Math.floor(1000 / TARGET_SEND_FPS);
+            } else if (fps > 24 && TARGET_SEND_FPS !== 12) {
+                TARGET_SEND_FPS = 12;
+                MIN_INTERVAL_MS = Math.floor(1000 / TARGET_SEND_FPS);
+            }
+        }
+    }
+
     async function onResults(res) {
-        // Pintar
+        // Dibujo intermitente (reduce costo gráfico)
+        drawTick++;
         clearOverlay();
         const list = res.multiHandLandmarks || [];
-        if (list.length > 0) drawHandLandmarks(list[0]);
+        if (list.length > 0 && (drawTick % DRAW_EVERY_N === 0)) {
+            drawHandLandmarks(list[0]);
+        }
 
-        // Enviar (throttle)
+        // Envío al backend (throttle)
         if (!capturing) return;
         const now = performance.now();
         if (now - lastSentMs < MIN_INTERVAL_MS) return;
 
-        const pts = (list[0] || []).map((p) => ({ x: +p.x, y: +p.y, z: +p.z }));
+        const pts = (list[0] || []).map((p) => ({
+            x: Math.round(p.x * 1000) / 1000,
+            y: Math.round(p.y * 1000) / 1000,
+            z: Math.round(p.z * 1000) / 1000,
+        }));
         if (!pts.length) return;
 
         lastSentMs = now;
         await sendFrame(pts);
     }
 
-    function startLoop() {
-        if (rafId) return;
-        const loop = () => {
-            if (!capturing || !video?.videoWidth) {
-                rafId = requestAnimationFrame(loop);
-                return;
-            }
-            if (!sending) {
-                sending = true;
-                mpHands
-                    .send({ image: video })
+    function processOneFrame() {
+        try {
+            const vw = video.videoWidth || procCanvas.width;
+            const vh = video.videoHeight || procCanvas.height;
+            // Redimensionamos el frame al canvas de procesamiento
+            procCtx.drawImage(video, 0, 0, vw, vh, 0, 0, procCanvas.width, procCanvas.height);
+
+            // Evitamos enviar múltiples inferencias simultáneas
+            if (!inFlightMP) {
+                inFlightMP = true;
+                mpHands.send({ image: procCanvas })
                     .catch(console.error)
-                    .finally(() => {
-                        sending = false;
-                    });
+                    .finally(() => { inFlightMP = false; });
             }
-            rafId = requestAnimationFrame(loop);
-        };
-        rafId = requestAnimationFrame(loop);
+        } catch { }
+        updateFpsCounter();
+    }
+
+    function startLoop() {
+        if (loopRunning) return;
+        loopRunning = true;
+
+        // Sincroniza con frames reales del video cuando es posible
+        if ("requestVideoFrameCallback" in HTMLVideoElement.prototype && typeof video.requestVideoFrameCallback === "function") {
+            usingRVFC = true;
+            const step = () => {
+                if (!loopRunning) return;
+                processOneFrame();
+                video.requestVideoFrameCallback(step);
+            };
+            video.requestVideoFrameCallback(step);
+        } else {
+            usingRVFC = false;
+            const step = () => {
+                if (!loopRunning) return;
+                processOneFrame();
+                requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        }
     }
 
     function stopLoop() {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-        sending = false;
+        loopRunning = false;
+        inFlightMP = false;
     }
 
-    // ------- Backend helpers -------
+    // ===================================
+    // ------- Backend helpers -----------
+    // ===================================
     async function ensureSecuencia() {
         if (secuenciaId) return secuenciaId;
 
@@ -449,7 +549,6 @@ document.addEventListener("DOMContentLoaded", () => {
             throw new Error("Etiqueta vacía");
         }
 
-        // Categoría y subcategoría (opcional, el backend también puede inferir)
         const catSlug = categoriaSelect?.value || undefined;
         let subcat = undefined;
         if (catSlug === "letra" || catSlug === "numero" || catSlug === "saludo" || catSlug === "palabra") {
@@ -474,7 +573,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function sendFrame(pts) {
-        if (!secuenciaId || inflight >= 2) return;
+        if (!secuenciaId || inflight >= 1) return; // 1 vuelo concurrente máximo
         inflight++;
         try {
             await guardarFrame({
@@ -490,7 +589,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ------- Stage / HUD -------
+    // ===================================
+    // ------- Stage / HUD / Layout ------
+    // ===================================
     function updateStage() {
         if (!captureStage) return;
         if (overlay) {
@@ -535,15 +636,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 180);
         setTimeout(ensureCaptureVisible, 600);
     });
+
+    // Pausar el loop cuando la pestaña no está visible (ahorra CPU)
     document.addEventListener("visibilitychange", () => {
-        if (!document.hidden)
+        if (document.hidden) {
+            stopLoop();
+        } else if (capturing) {
+            startLoop();
             setTimeout(() => {
                 updateStage();
                 ensureCaptureVisible();
             }, 100);
+        }
     });
 
-    // ------- Acciones -------
+    // ===================================
+    // ------- Acciones principales ------
+    // ===================================
     async function startCapture() {
         await ensureSecuencia();
         initMP();
@@ -571,6 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await Cam.ensureDevices();
         if (Cam.devices.length <= 1)
             return mostrarAlertaBootstrap("ℹ️ Solo hay una cámara disponible.", "warning");
+
         const target = Cam.facing === "user" ? "environment" : "user";
         mostrarAlertaBootstrap(
             `🔄 Cambiando a cámara ${target === "user" ? "frontal" : "trasera"}…`,
@@ -578,6 +688,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         try {
             await Cam.start(target);
+            applyViewTransform(target);
             setEstado(
                 capturing
                     ? `🟢 Capturando (${target === "user" ? "frontal" : "trasera"})…`
@@ -596,7 +707,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ------- Listeners -------
+    // ===================================
+    // ------- Listeners UI --------------
+    // ===================================
     clearInputBtn?.addEventListener("click", () => {
         etiquetaInput.value = "";
         etiquetaInput.focus();
@@ -656,25 +769,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-
-
-    // ------- Exponer funciones del header -------
+    // ===================================
+    // ------- APIs expuestas (header) ----
+    // ===================================
     window.capturarSecuencia = async () => {
         try {
-            await Cam.start(Cam.facing); // pide permisos y muestra preview
+            await Cam.start(Cam.facing); // permisos + preview
+            applyViewTransform(Cam.facing);
             setEstado("👀 Vista previa lista. Pulsa «Iniciar» para grabar.");
             mostrarAlertaBootstrap("📸 Permiso de cámara concedido. Vista previa activa.", "success");
             ensureCaptureVisible();
-        } catch (e) {
-
-        }
+        } catch (e) { /* no-op */ }
     };
 
     window.verMetricas = function () {
         try {
-            const url = "metricas.html"; 
+            const url = "metricas.html";
             const iframe = document.getElementById("iframeMetricas");
-            if (iframe) iframe.src = url;        
+            if (iframe) iframe.src = url;
             const modal = new bootstrap.Modal(document.getElementById("modalMetricas"));
             modal.show();
         } catch (e) {
@@ -682,7 +794,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.open("metricas.html", "_blank");
         }
     };
-
 
     window.verHistorial = function () {
         try {
@@ -695,7 +806,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // ------- Limpieza -------
+    // ===================================
+    // ------- Limpieza -------------------
+    // ===================================
     window.addEventListener("beforeunload", () => {
         try {
             capturing = false;
@@ -704,7 +817,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch { }
     });
 
-    // Estado inicial
+    // Estado inicial / HUD
     try {
         video?.setAttribute("playsinline", "");
         video?.setAttribute("autoplay", "");
@@ -716,4 +829,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateStage();
     fsUI();
     ensureCaptureVisible();
+
+    // Ajuste inicial del espejo/zoom según facing guardado
+    applyViewTransform(Cam.facing || "user");
 });
