@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, session
 
 auth_bp = Blueprint('auth_bp', __name__)
 
-# 👉 Login: permite POST desde el frontend
+# Login: permite POST desde el frontend
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json() if request.is_json else request.form

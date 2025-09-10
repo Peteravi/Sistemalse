@@ -1,15 +1,26 @@
+// metricas.js — listo para LOCAL y NUBE
+
 // ====================
-// Configuración global
+// Backend autodetectable
 // ====================
-window.BACKEND_URL =
-    window.BACKEND_URL || "https://lse-backend-479238723367.us-central1.run.app";
+function computeDefaultBackend() {
+    const host = location.hostname;
+    const proto = location.protocol;
+    const isLocal = host === "localhost" || host === "127.0.0.1";
+    // Local: Flask en 8080 | Nube: Cloud Run
+    return isLocal ? `${proto}//127.0.0.1:5000` : "https://lse-backend-479238723367.us-central1.run.app";
+}
+
+// Permite forzar un backend sin tocar el código:
+//   localStorage.setItem('BACKEND_URL','http://192.168.1.10:8080'); location.reload();
+const LS_OVERRIDE = (localStorage.getItem("BACKEND_URL") || "").trim();
+const GLOBAL_OVERRIDE = (window.BACKEND_URL || "").trim();
+const BACKEND = LS_OVERRIDE || GLOBAL_OVERRIDE || computeDefaultBackend();
 
 // ====================
 // Dashboard Métricas
 // ====================
 (() => {
-    const BACKEND = window.BACKEND_URL;
-
     const el = (id) => document.getElementById(id);
     const kSecuencias = el("kSecuencias");
     const kFrames = el("kFrames");
@@ -32,8 +43,8 @@ window.BACKEND_URL =
 
     let chSeq, chFr, chHr;
     let autoTimer = null;
-    let loading = false;           // evita solapes
-    let pendingRefresh = false;    // si llega otra orden mientras carga
+    let loading = false;        // evita solapes
+    let pendingRefresh = false; // reintento si llega otra orden mientras carga
 
     const fmt = (n) => new Intl.NumberFormat().format(n || 0);
     const nowLocal = () => new Date().toLocaleString();
@@ -66,11 +77,11 @@ window.BACKEND_URL =
             kSecuencias.textContent = fmt(m.totales.secuencias);
             kFrames.textContent = fmt(m.totales.frames);
             kDuracion.textContent = (m.promedios.duracion_estimada_seg != null)
-                ? fmt(m.promedios.duracion_estimada_seg.toFixed(2))
+                ? fmt(Number(m.promedios.duracion_estimada_seg).toFixed(2))
                 : "—";
             kFps.textContent = m.promedios.fps_asumido;
 
-            // Listado de categorías
+            // Listado de categorías (máx 8 para no saturar)
             ulCats.innerHTML = "";
             (m.categorias || []).slice(0, 8).forEach(c => {
                 const li = document.createElement("li");
@@ -118,7 +129,6 @@ window.BACKEND_URL =
             loading = false;
             if (pendingRefresh) {
                 pendingRefresh = false;
-                // hacer un segundo intento si hubo una orden durante la carga
                 setTimeout(() => cargar().catch(console.warn), 50);
             }
         }
@@ -126,46 +136,31 @@ window.BACKEND_URL =
 
     // ------------- AUTO REFRESH -------------
     function clearAutoTimer() {
-        if (autoTimer) {
-            clearInterval(autoTimer);
-            autoTimer = null;
-        }
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
     }
 
     function scheduleAuto() {
         clearAutoTimer();
         const sec = Math.max(3, parseInt(autoSec?.value || "10", 10));
-        autoTimer = setInterval(() => {
-            cargar().catch(e => console.warn("Auto-refresh error:", e));
-        }, sec * 1000);
+        autoTimer = setInterval(() => { cargar().catch(e => console.warn("Auto-refresh error:", e)); }, sec * 1000);
     }
 
     function setAutoRefresh(enabled) {
         if (!autoChk) return;
         autoChk.checked = !!enabled;
-        if (enabled) {
-            scheduleAuto();
-        } else {
-            clearAutoTimer();
-        }
+        if (enabled) scheduleAuto(); else clearAutoTimer();
     }
 
-    // Pausar en background para ahorrar datos/batería
+    // Pausar en background para ahorrar recursos
     document.addEventListener("visibilitychange", () => {
         if (!autoChk?.checked) return;
-        if (document.hidden) {
-            clearAutoTimer();
-        } else {
-            cargar().finally(scheduleAuto);
-        }
+        if (document.hidden) clearAutoTimer(); else cargar().finally(scheduleAuto);
     });
 
     // Eventos UI
     btnAplicar?.addEventListener("click", () => cargar().catch(e => alert(e.message)));
     autoChk?.addEventListener("change", () => setAutoRefresh(autoChk.checked));
-    autoSec?.addEventListener("change", () => {
-        if (autoChk?.checked) scheduleAuto();
-    });
+    autoSec?.addEventListener("change", () => { if (autoChk?.checked) scheduleAuto(); });
     fDesde?.addEventListener("change", () => cargar().catch(console.warn));
     fHasta?.addEventListener("change", () => cargar().catch(console.warn));
     fFps?.addEventListener("change", () => cargar().catch(console.warn));

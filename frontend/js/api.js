@@ -1,11 +1,20 @@
 // js/api.js
 // ================================
-// Configuración base
+// Configuración base (local <-> nube)
 // ================================
-const DEFAULT_URL = "https://lse-backend-479238723367.us-central1.run.app";
-export const BACKEND_URL = (window.BACKEND_URL && String(window.BACKEND_URL).trim())
-    ? String(window.BACKEND_URL).trim()
-    : DEFAULT_URL;
+function computeDefaultBackend() {
+    const host = location.hostname;
+    const proto = location.protocol;
+    const isLocal = host === "localhost" || host === "127.0.0.1";
+    // Local: Flask en 8080 | Nube: tu Cloud Run actual
+     return isLocal ? `${proto}//127.0.0.1:5000` : "https://lse-backend-479238723367.us-central1.run.app";
+}
+
+// Permite forzar un backend sin tocar el código:
+//   localStorage.setItem('BACKEND_URL','http://192.168.1.10:8080'); location.reload();
+const LS_OVERRIDE = (localStorage.getItem("BACKEND_URL") || "").trim();
+const GLOBAL_OVERRIDE = (window.BACKEND_URL || "").trim(); // por si lo inyectas en index
+export const BACKEND_URL = LS_OVERRIDE || GLOBAL_OVERRIDE || computeDefaultBackend();
 
 // Utilidad interna: parseo seguro de JSON
 async function parseJsonSafe(response) {
@@ -18,10 +27,7 @@ async function parseJsonSafe(response) {
 // Endpoints
 // ================================
 
-/**
- * Ping del backend (usa /api/historial como “salud”)
- * Devuelve Response (no JSON), útil para saber si el backend responde.
- */
+/** Ping del backend (usa /api/historial como “salud”). Devuelve Response. */
 export async function pingSecuencias() {
     return fetch(`${BACKEND_URL}/api/historial?pagina=1&tamanio=1`, {
         credentials: "include",
@@ -36,19 +42,13 @@ export async function pingSecuencias() {
  * @param {string} [params.tipo]            // numero|fecha|cantidad|texto
  * @param {string} [params.valor]
  * @param {number} [params.usuario_id]
- * @param {string|Date} [params.fecha]      // ISO string recomendado
+ * @param {string|Date} [params.fecha]      // ISO recomendado
  * @param {string} [params.categoria_slug]  // 'letra'|'numero'|'palabra'|'expresion_facial'|'saludo'|'otro'
  * @param {string} [params.subcategoria]    // 'A','5','hola','feliz', etc.
  * @returns {Promise<{ok:boolean,status:number,data:any,raw:string}>}
  */
 export async function crearSecuencia({
-    nombre,
-    tipo,
-    valor,
-    usuario_id,
-    fecha,
-    categoria_slug,
-    subcategoria,
+    nombre, tipo, valor, usuario_id, fecha, categoria_slug, subcategoria,
 } = {}) {
     const body = {};
     if (nombre && String(nombre).trim()) body.nombre = String(nombre).trim();
@@ -82,7 +82,7 @@ export async function crearSecuencia({
  * @param {Object} params
  * @param {number} [params.secuencia_id]
  * @param {number} params.frame
- * @param {Array<{x:number,y:number,z:number}>} params.landmarks
+ * @param {Array|Object} params.landmarks
  * @param {string} [params.nombre]
  * @param {string} [params.tipo]
  * @param {string} [params.valor]
@@ -92,15 +92,7 @@ export async function crearSecuencia({
  * @returns {Promise<{ok:boolean,status:number,data:any,raw:string}>}
  */
 export async function guardarFrame({
-    secuencia_id,
-    frame,
-    landmarks,
-    nombre,
-    tipo,
-    valor,
-    categoria_slug,
-    subcategoria,
-    usuario_id,
+    secuencia_id, frame, landmarks, nombre, tipo, valor, categoria_slug, subcategoria, usuario_id,
 }) {
     const body = { secuencia_id, frame, landmarks };
 
@@ -131,25 +123,9 @@ export async function guardarFrame({
 
 /**
  * Listado del historial con filtros (incluye categoría/subcategoría).
- * @param {Object} params
- * @param {string} [params.nombre]
- * @param {string} [params.desde]
- * @param {string} [params.hasta]
- * @param {number} [params.pagina=1]
- * @param {number} [params.tamanio=20]
- * @param {boolean} [params.solo_con_frames=false]
- * @param {string} [params.categoria_slug]
- * @param {string} [params.subcategoria]
  */
 export async function historialListado({
-    nombre,
-    desde,
-    hasta,
-    pagina = 1,
-    tamanio = 20,
-    solo_con_frames = false,
-    categoria_slug,
-    subcategoria,
+    nombre, desde, hasta, pagina = 1, tamanio = 20, solo_con_frames = false, categoria_slug, subcategoria,
 } = {}) {
     const q = new URLSearchParams();
     if (nombre) q.set("nombre", nombre);
@@ -168,10 +144,7 @@ export async function historialListado({
     return r.json();
 }
 
-/**
- * Detalle de una secuencia con frames.
- * @param {number} secuencia_id
- */
+/** Detalle de una secuencia con frames. */
 export async function historialDetalle(secuencia_id) {
     const r = await fetch(`${BACKEND_URL}/api/historial/${secuencia_id}`, {
         credentials: "include",
@@ -182,23 +155,9 @@ export async function historialDetalle(secuencia_id) {
 
 /**
  * Construir URL de exportación (CSV o JSON) con filtros, incl. categoría.
- * @param {Object} params
- * @param {"csv"|"json"} [params.formato="csv"]
- * @param {number} [params.secuencia_id]
- * @param {string} [params.nombre]
- * @param {string} [params.desde]
- * @param {string} [params.hasta]
- * @param {string} [params.categoria_slug]
- * @param {string} [params.subcategoria]
  */
 export function exportarUrl({
-    formato = "csv",
-    secuencia_id,
-    nombre,
-    desde,
-    hasta,
-    categoria_slug,
-    subcategoria,
+    formato = "csv", secuencia_id, nombre, desde, hasta, categoria_slug, subcategoria,
 } = {}) {
     const q = new URLSearchParams();
     q.set("formato", formato);
@@ -211,6 +170,7 @@ export function exportarUrl({
     return `${BACKEND_URL}/api/exportar?${q.toString()}`;
 }
 
+/** Cerrar sesión */
 export function logout() {
     return fetch(`${BACKEND_URL}/logout`, { credentials: "include" });
 }

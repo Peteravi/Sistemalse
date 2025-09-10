@@ -209,9 +209,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (n - tTap < 300) btnFS?.click();
         tTap = n;
     });
+
+    const ENABLE_FS_HOTKEY = false; // <- atajo con F deshabilitado
     document.addEventListener("keydown", (e) => {
+        if (!ENABLE_FS_HOTKEY) return;
         if ((e.key || "").toLowerCase() === "f") btnFS?.click();
     });
+
 
     // ===================================
     // ------- Vista (flip/zoom) ---------

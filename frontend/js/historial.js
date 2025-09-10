@@ -1,4 +1,21 @@
-const BACKEND_BASE = window.BACKEND_URL || "https://lse-backend-479238723367.us-central1.run.app";
+// historial.js — listo para LOCAL y NUBE
+
+// ====================
+// Backend autodetectable
+// ====================
+function computeDefaultBackend() {
+    const host = location.hostname;
+    const proto = location.protocol;
+    const isLocal = host === "localhost" || host === "127.0.0.1";
+    // Local: Flask en 8080 | Nube: Cloud Run
+     return isLocal ? `${proto}//127.0.0.1:5000` : "https://lse-backend-479238723367.us-central1.run.app";
+}
+
+// Permite forzar un backend sin tocar el código:
+//   localStorage.setItem('BACKEND_URL','http://192.168.1.10:8080'); location.reload();
+const LS_OVERRIDE = (localStorage.getItem("BACKEND_URL") || "").trim();
+const GLOBAL_OVERRIDE = (window.BACKEND_URL || "").trim();
+const BACKEND_BASE = LS_OVERRIDE || GLOBAL_OVERRIDE || computeDefaultBackend();
 
 // ===== Estado =====
 let pagina = 1;
@@ -48,8 +65,7 @@ function showToast(message, type = "success", delay = 3000) {
         ${message}
       </div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
-    </div>
-  `;
+    </div>`;
     container.appendChild(toast);
     const bsToast = new bootstrap.Toast(toast, { autohide: true, delay });
     bsToast.show();
@@ -71,9 +87,7 @@ function aplicarFiltroAutomatico() {
 
     if (!desdeEl.value && !hastaEl.value) {
         const hoy = new Date();
-        const hace7 = new Date();
-        hace7.setDate(hoy.getDate() - 7);
-
+        const hace7 = new Date(); hace7.setDate(hoy.getDate() - 7);
         desdeEl.value = toInputDate(hace7);
         hastaEl.value = toInputDate(hoy);
     }
@@ -96,6 +110,7 @@ async function fetchCategorias() {
         const j = await fetchJSON(`${BACKEND_BASE}/api/categorias`);
         _categoriasCache = Array.isArray(j.categorias) ? j.categorias : [];
     } catch {
+        // fallback local si falla el endpoint
         _categoriasCache = [
             { slug: "letra", nombre: "Letra" },
             { slug: "numero", nombre: "Número" },
@@ -105,7 +120,7 @@ async function fetchCategorias() {
             { slug: "otro", nombre: "Otro" }
         ];
     }
-    return _categororiasCache;
+    return _categoriasCache; // <-- corregido (antes devolvía _categororiasCache con typo)
 }
 
 async function poblarCategoriasFiltro() {
@@ -203,10 +218,7 @@ async function cargarHistorial() {
             const tr = document.createElement("tr");
             tr.innerHTML = `
         <td>${toLocal(item.fecha)}</td>
-        <td>
-          ${item.nombre ?? "-"}
-          ${catBadge}
-        </td>
+        <td>${item.nombre ?? "-"} ${catBadge}</td>
         <td>${item.usuario ?? "-"}</td>
         <td>${item.frames}</td>
         <td class="text-end">
@@ -218,8 +230,7 @@ async function cargarHistorial() {
               <i class="bi bi-pencil-square"></i>
             </button>
           </div>
-        </td>
-      `;
+        </td>`;
 
             tr.querySelector(".btn-ver").addEventListener("click", () =>
                 verDetalle(item.id, item.nombre, item.fecha, item.frames, item.usuario)
@@ -238,7 +249,6 @@ async function cargarHistorial() {
         document.getElementById("nextPage").disabled = pagina * tamanio >= data.total;
 
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
-
     } catch (e) {
         setError(tbody);
         console.error("Error cargando historial:", e);
@@ -281,10 +291,7 @@ async function verDetalle(id, nombre, fecha, framesTotal, usuario) {
                     ? fr.landmarks.length
                     : (fr.landmarks?.length ?? 0);
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-          <td>${fr.num_frame}</td>
-          <td>${count} puntos</td>
-        `;
+                tr.innerHTML = `<td>${fr.num_frame}</td><td>${count} puntos</td>`;
                 detalleBody.appendChild(tr);
             });
             detalleInfo.textContent = `Mostrando ${rows.length} de ${data.secuencia.total_frames} frames.`;
@@ -327,7 +334,7 @@ async function abrirModalEdicion(item) {
             };
             if (!payload.nombre) delete payload.nombre;
             if (!payload.categoria_slug) delete payload.categoria_slug;
-            if (payload.subcategoria === "") payload.subcategoria = ""; // limpiar
+            if (payload.subcategoria === "") payload.subcategoria = ""; // limpiar explícito
 
             await patchSecuencia(id, payload);
             modal.hide();

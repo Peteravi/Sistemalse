@@ -3,16 +3,17 @@ from flask import Blueprint, request, jsonify
 from bd.conexion import get_connection
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from psycopg2.extras import RealDictCursor
 
 metricas_bp = Blueprint("metricas_bp", __name__)
 
 LOCAL_TZ = ZoneInfo("America/Guayaquil")
 
 def _parse_date_or_none(s: str | None):
+    """Acepta YYYY-MM-DD o ISO 8601 (con/sin Z). Devuelve datetime (naive/aware) o None."""
     if not s:
         return None
     try:
-        # acepta YYYY-MM-DD o ISO
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except Exception:
         try:
@@ -21,11 +22,17 @@ def _parse_date_or_none(s: str | None):
             return None
 
 def _iso_utc_z(dt):
+    """Devuelve ISO en UTC con sufijo Z o None."""
     if not dt:
         return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+@metricas_bp.route("/metrics/overview", methods=["OPTIONS"])
+def metrics_overview_preflight():
+    # 204 sin cuerpo: las cabeceras CORS globales se añaden en app.after_request
+    return ("", 204)
 
 @metricas_bp.route("/metrics/overview", methods=["GET"])
 def overview():
@@ -35,53 +42,67 @@ def overview():
     {
       rango: {desde, hasta},
       totales: {secuencias, frames},
-      promedios: {frames_por_secuencia, frame_span, duracion_estimada_seg},
-      series: {secuencias_por_dia: [{dia, total}], frames_por_dia: [...]},
+      promedios: {frames_por_secuencia, frame_span, duracion_estimada_seg, fps_asumido},
+      series: {
+        secuencias_por_dia: [{dia, total}],
+        frames_por_dia: [{dia, total}]
+      },
       categorias: [{slug, subcategoria, total}],
       usuarios: [{usuario_id, total}],
       horas: [{hora_0_23, total}]
     }
     """
+    # --- Parámetros ---
     desde = _parse_date_or_none(request.args.get("desde"))
     hasta = _parse_date_or_none(request.args.get("hasta"))
-    fps = float(request.args.get("fps", 30))
+    try:
+        fps = float(request.args.get("fps", 30))
+        if fps <= 0:
+            fps = 30.0
+    except Exception:
+        fps = 30.0
+
     usuario_id = request.args.get("usuario_id")
     categoria_slug = (request.args.get("categoria_slug") or "").strip().lower()
 
     filtros = []
     params = []
 
-    # secuencias.fecha está en UTC; convertimos a local para agrupar
+    # secuencias.fecha se almacena en UTC
     if desde:
+        # Asegura comparar en UTC
+        d = desde
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=LOCAL_TZ)
         filtros.append("s.fecha >= %s")
-        params.append(desde.astimezone(timezone.utc))
+        params.append(d.astimezone(timezone.utc))
+
     if hasta:
-        # hacerlo inclusivo si es solo fecha
+        # si viene solo fecha (00:00:00), lo hacemos inclusivo hasta fin de día local
         h = hasta
         if h.tzinfo is None:
             h = h.replace(tzinfo=LOCAL_TZ)
-        if h.hour == 0 and h.minute == 0 and h.second == 0 and h.microsecond == 0:
-            # fin del día local -> pasa a UTC
-            h = (h.replace(hour=23, minute=59, second=59, microsecond=999999)).astimezone(timezone.utc)
-        else:
-            h = h.astimezone(timezone.utc)
+        if (h.hour, h.minute, h.second, h.microsecond) == (0, 0, 0, 0):
+            h = h.replace(hour=23, minute=59, second=59, microsecond=999999)
         filtros.append("s.fecha <= %s")
-        params.append(h)
+        params.append(h.astimezone(timezone.utc))
 
     if usuario_id:
         filtros.append("s.usuario_id = %s")
         params.append(int(usuario_id))
+
     if categoria_slug:
         filtros.append("""
-          EXISTS (
-            SELECT 1 FROM categorias c
-            WHERE c.id = s.categoria_id AND c.slug = %s
-          )
+            EXISTS (
+              SELECT 1 FROM categorias c
+              WHERE c.id = s.categoria_id AND c.slug = %s
+            )
         """)
         params.append(categoria_slug)
 
     where = "WHERE " + " AND ".join(filtros) if filtros else ""
 
+    # --- Queries ---
     q_totales = f"""
       SELECT
         COUNT(*) AS secuencias,
@@ -96,7 +117,7 @@ def overview():
     """
 
     q_frames_por_secuencia = f"""
-      SELECT AVG(fc.cnt)::float
+      SELECT AVG(fc.cnt)::float AS avg
       FROM (
         SELECT s.id, COUNT(f.*) AS cnt
         FROM secuencias s
@@ -107,7 +128,7 @@ def overview():
     """
 
     q_frame_span = f"""
-      SELECT AVG(span)::float
+      SELECT AVG(span)::float AS avg
       FROM (
         SELECT s.id, 
                CASE WHEN COUNT(f.*) > 0
@@ -120,7 +141,7 @@ def overview():
       ) t
     """
 
-    # Series por día (en hora local)
+    # Series por día en hora local
     q_seq_por_dia = f"""
       SELECT (s.fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil')::date AS dia,
              COUNT(*) AS total
@@ -140,7 +161,6 @@ def overview():
       ORDER BY 1
     """
 
-    # Distribución por categoría/subcategoría
     q_categorias = f"""
       SELECT COALESCE(c.slug, 'sin_categoria') AS slug,
              s.subcategoria,
@@ -152,7 +172,6 @@ def overview():
       ORDER BY total DESC, slug ASC
     """
 
-    # Distribución por usuario
     q_usuarios = f"""
       SELECT COALESCE(s.usuario_id, 0) AS usuario_id, COUNT(*) AS total
       FROM secuencias s
@@ -161,7 +180,6 @@ def overview():
       ORDER BY total DESC
     """
 
-    # Actividad por hora local
     q_horas = f"""
       SELECT EXTRACT(HOUR FROM (s.fecha AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil'))::int AS hora_0_23,
              COUNT(*) AS total
@@ -172,30 +190,49 @@ def overview():
     """
 
     try:
-        with get_connection() as conn, conn.cursor() as cur:
-            cur.execute(q_totales, params); tot = cur.fetchone() or {}
-            cur.execute(q_frames_por_secuencia, params); fpsq = cur.fetchone()
-            cur.execute(q_frame_span, params); fspan = cur.fetchone()
+        with get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Totales y promedios
+            cur.execute(q_totales, params)
+            tot = cur.fetchone() or {"secuencias": 0, "frames": 0}
 
-            cur.execute(q_seq_por_dia, params); seq_dia = cur.fetchall()
-            cur.execute(q_frames_por_dia, params); fr_dia = cur.fetchall()
+            cur.execute(q_frames_por_secuencia, params)
+            fpsq = cur.fetchone() or {"avg": 0.0}
 
-            cur.execute(q_categorias, params); cats = cur.fetchall()
-            cur.execute(q_usuarios, params); users = cur.fetchall()
-            cur.execute(q_horas, params); horas = cur.fetchall()
+            cur.execute(q_frame_span, params)
+            fspan = cur.fetchone() or {"avg": 0.0}
 
-        frames_por_sec = (fpsq["avg"] if isinstance(fpsq, dict) else fpsq[0]) if fpsq else 0.0
-        frame_span_prom = (fspan["avg"] if isinstance(fspan, dict) else fspan[0]) if fspan else 0.0
+            # Series / distribuciones
+            cur.execute(q_seq_por_dia, params)
+            seq_dia = cur.fetchall() or []
+
+            cur.execute(q_frames_por_dia, params)
+            fr_dia = cur.fetchall() or []
+
+            cur.execute(q_categorias, params)
+            cats = cur.fetchall() or []
+
+            cur.execute(q_usuarios, params)
+            users = cur.fetchall() or []
+
+            cur.execute(q_horas, params)
+            horas = cur.fetchall() or []
+
+        frames_por_sec = float(fpsq.get("avg") or 0.0)
+        frame_span_prom = float(fspan.get("avg") or 0.0)
         dur_est = (frame_span_prom / fps) if fps > 0 else None
 
         out = {
-            "rango": {"desde": _iso_utc_z(desde) if desde else None,
-                      "hasta": _iso_utc_z(hasta) if hasta else None},
-            "totales": {"secuencias": int(tot.get("secuencias", 0)),
-                        "frames": int(tot.get("frames", 0))},
+            "rango": {
+                "desde": _iso_utc_z(desde) if desde else None,
+                "hasta": _iso_utc_z(hasta) if hasta else None
+            },
+            "totales": {
+                "secuencias": int(tot.get("secuencias", 0)),
+                "frames": int(tot.get("frames", 0))
+            },
             "promedios": {
-                "frames_por_secuencia": float(frames_por_sec or 0),
-                "frame_span": float(frame_span_prom or 0),
+                "frames_por_secuencia": frames_por_sec,
+                "frame_span": frame_span_prom,
                 "duracion_estimada_seg": float(round(dur_est, 3)) if dur_est is not None else None,
                 "fps_asumido": fps
             },
@@ -217,6 +254,8 @@ def overview():
                 {"hora_0_23": int(r["hora_0_23"]), "total": int(r["total"])} for r in horas
             ]
         }
-        return jsonify({"ok": True, "metrics": out})
+        return jsonify({"ok": True, "metrics": out}), 200
+
     except Exception as e:
+        # Devuelve JSON siempre, para que el frontend lo maneje sin romperse
         return jsonify({"ok": False, "error": str(e)}), 500
